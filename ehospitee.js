@@ -2,82 +2,18 @@
 // E-HOSPITEE — app.js
 // ══════════════════════════════════════
 
-// ── DATABASE (IndexedDB + localStorage) ──
+// ── SUPABASE CONFIG ──
+// Replace these with your actual Supabase project URL and anon key
+const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── DATABASE (Supabase) ──
 const DB = {
   _prefix: 'ehospitee_',
-  _idb: null,
 
   async init() {
-    return new Promise((res, rej) => {
-      const req = indexedDB.open('EHospiteeDB', 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        ['patients','hospitals','appointments','records','medications','vitals','emergencies','messages'].forEach(store => {
-          if (!db.objectStoreNames.contains(store)) {
-            const s = db.createObjectStore(store, { keyPath: 'id', autoIncrement: true });
-            if (store === 'patients')     s.createIndex('email',     'email',     { unique: true });
-            if (store === 'hospitals')    s.createIndex('email',     'email',     { unique: true });
-            if (store === 'appointments') s.createIndex('patientId', 'patientId', { unique: false });
-            if (store === 'records')      s.createIndex('patientId', 'patientId', { unique: false });
-            if (store === 'medications')  s.createIndex('patientId', 'patientId', { unique: false });
-          }
-        });
-      };
-      req.onsuccess = e => { this._idb = e.target.result; this._seedData(); res(); };
-      req.onerror  = () => rej(req.error);
-    });
-  },
-
-  async _seedData() {
-    const count = await this.count('patients');
-    if (count > 0) { await this._loadSession(); return; }
-
-    await this.add('patients', {
-      firstName:'Rajesh', lastName:'Kumar', email:'rajesh@demo.com',
-      mobile:'+91 98765 43210', dob:'1985-06-15', bloodGroup:'B+',
-      allergies:'Penicillin', emergencyContact:'Priya Kumar — +91 98765 12345',
-      password:'demo123', createdAt: new Date().toISOString()
-    });
-    await this.add('hospitals', {
-      name:'Apollo Hospitals', regNo:'MCI-HYD-2024-00123',
-      email:'admin@apollo.com', password:'demo123',
-      address:'Film Nagar, Jubilee Hills, Hyderabad — 500033',
-      phone:'+91 40 2360 7777', emergencyPhone:'+91 40 2360 0000',
-      specialties:'Cardiology, Orthopaedics, Neurology, General Medicine',
-      totalBeds:52, createdAt: new Date().toISOString()
-    });
-
-    const appts = [
-      { patientId:1, doctor:'Dr. S. Rao',   specialty:'Cardiology',    hospital:'Apollo Hospitals', date:'2026-03-12', time:'10:30 AM', status:'upcoming',  fee:600 },
-      { patientId:1, doctor:'Dr. P. Mehta', specialty:'Orthopaedics',  hospital:'KIMS Hospital',    date:'2026-03-18', time:'3:00 PM',  status:'upcoming',  fee:500 },
-      { patientId:1, doctor:'Dr. V. Iyer',  specialty:'Neurology',     hospital:'Yashoda Hospital', date:'2026-01-22', time:'11:00 AM', status:'completed', fee:700 },
-      { patientId:1, doctor:'Dr. S. Rao',   specialty:'Cardiology',    hospital:'Apollo Hospitals', date:'2026-01-12', time:'10:00 AM', status:'completed', fee:600 },
-    ];
-    for (const a of appts) await this.add('appointments', { ...a, createdAt: new Date().toISOString() });
-
-    const recs = [
-      { patientId:1, name:'Lipid Profile Report',   type:'lab',          hospital:'Apollo Hospitals', date:'2026-03-08' },
-      { patientId:1, name:'Prescription — Dr. Rao', type:'prescription', hospital:'Apollo Hospitals', date:'2026-02-12' },
-      { patientId:1, name:'Complete Blood Count',   type:'lab',          hospital:'KIMS Hospital',    date:'2026-01-10' },
-      { patientId:1, name:'ECG Report',             type:'report',       hospital:'Apollo Hospitals', date:'2025-12-22' },
-      { patientId:1, name:'Discharge Summary',      type:'summary',      hospital:'Yashoda Hospital', date:'2025-11-15' },
-    ];
-    for (const r of recs) await this.add('records', { ...r, createdAt: new Date().toISOString() });
-
-    const meds = [
-      { patientId:1, name:'Ecosprin 75mg',    dose:'1 tablet', frequency:'After breakfast', time:'8:00 AM',   prescribedBy:'Dr. S. Rao', active:true },
-      { patientId:1, name:'Atorvastatin 10mg',dose:'1 tablet', frequency:'Before bed',      time:'10:00 PM',  prescribedBy:'Dr. S. Rao', active:true },
-      { patientId:1, name:'Metoprolol 25mg',  dose:'1 tablet', frequency:'Twice daily',     time:'8AM / 8PM', prescribedBy:'Dr. S. Rao', active:true },
-    ];
-    for (const m of meds) await this.add('medications', { ...m, createdAt: new Date().toISOString() });
-
-    await this.add('vitals', {
-      patientId:1, heartRate:'72 bpm', bp:'120/80', temp:'36.8°C',
-      sugar:'98 mg/dL', weight:'72 kg', spo2:'98%',
-      recordedAt: new Date().toISOString()
-    });
-
-    showToast('✅ Database initialised with demo data');
+    await this._loadSession();
   },
 
   async _loadSession() {
@@ -86,29 +22,44 @@ const DB = {
   },
 
   /* ── Core CRUD ── */
-  _tx(store, mode, fn) {
-    return new Promise((res, rej) => {
-      const req = fn(this._idb.transaction(store, mode).objectStore(store));
-      req.onsuccess = () => res(req.result);
-      req.onerror   = () => rej(req.error);
-    });
+  async add(table, data) {
+    const { data: row, error } = await _sb.from(table).insert(data).select().single();
+    if (error) throw error;
+    return row;
   },
-  add    (store, data)        { return this._tx(store, 'readwrite', s => s.add(data)); },
-  get    (store, id)          { return this._tx(store, 'readonly',  s => s.get(id)); },
-  getAll (store)              { return this._tx(store, 'readonly',  s => s.getAll()); },
-  put    (store, data)        { return this._tx(store, 'readwrite', s => s.put(data)); },
-  delete (store, id)          { return this._tx(store, 'readwrite', s => s.delete(id)); },
-  count  (store)              { return this._tx(store, 'readonly',  s => s.count()); },
-  getByIndex(store, idx, val) {
-    return new Promise((res, rej) => {
-      const req = this._idb.transaction(store,'readonly').objectStore(store).index(idx).getAll(val);
-      req.onsuccess = () => res(req.result);
-      req.onerror   = () => rej(req.error);
-    });
+  async get(table, id) {
+    const { data, error } = await _sb.from(table).select('*').eq('id', id).single();
+    if (error) throw error;
+    return data;
   },
-  async findByEmail(store, email) {
-    const all = await this.getAll(store);
-    return all.find(r => r.email === email) || null;
+  async getAll(table) {
+    const { data, error } = await _sb.from(table).select('*');
+    if (error) throw error;
+    return data || [];
+  },
+  async put(table, data) {
+    const { data: row, error } = await _sb.from(table).update(data).eq('id', data.id).select().single();
+    if (error) throw error;
+    return row;
+  },
+  async delete(table, id) {
+    const { error } = await _sb.from(table).delete().eq('id', id);
+    if (error) throw error;
+  },
+  async count(table) {
+    const { count, error } = await _sb.from(table).select('*', { count: 'exact', head: true });
+    if (error) throw error;
+    return count || 0;
+  },
+  async getByIndex(table, col, val) {
+    const { data, error } = await _sb.from(table).select('*').eq(col, val);
+    if (error) throw error;
+    return data || [];
+  },
+  async findByEmail(table, email) {
+    const { data, error } = await _sb.from(table).select('*').eq('email', email).maybeSingle();
+    if (error) throw error;
+    return data || null;
   },
 
   /* ── Session ── */
@@ -172,8 +123,7 @@ async function handleRegister() {
       if (password !== confirmPw)            { showToast('⚠️ Passwords do not match');           return; }
       if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered'); return; }
 
-      const id   = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
-      const user = await DB.get('patients', id);
+      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
       DB.setSession(user, 'patient');
       await loadPatientDash(user);
       showToast('✅ Account created successfully!');
