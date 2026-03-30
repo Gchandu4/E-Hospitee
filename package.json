@@ -1,0 +1,12 @@
+{
+  "name": "ehospitee",
+  "version": "1.0.0",
+  "description": "E-Hospitee Hospital & Patient Management Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
