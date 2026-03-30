@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>E-Hospitee — Patient Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body id="page-patient">
+
+<!-- ── NAV ── -->
+<nav id="navbar">
+  <div class="nav-inner" style="max-width:100%;padding:0 28px">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">🏥</div>
+      <span class="logo-text">E-Hospi<span>tee</span></span>
+    </a>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="font-size:.85rem;color:var(--ink-mid)">Welcome, <strong id="patient-name">...</strong> 👋</div>
+      <button onclick="signOut()" class="nav-btn-outline" style="padding:7px 16px!important;font-size:.82rem!important">Sign Out</button>
+    </div>
+  </div>
+</nav>
+
+<div class="dash-wrap">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div style="padding:12px 12px 4px;display:flex;align-items:center;gap:10px">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--teal-pale);border:2px solid var(--border-teal);display:flex;align-items:center;justify-content:center;font-size:1.1rem">👤</div>
+        <div>
+          <div style="font-weight:600;font-size:.85rem" id="sidebar-patient-name">Loading...</div>
+          <div style="font-size:.72rem;color:var(--ink-light)">Patient</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Main</span>
+      <button class="sidebar-item active" onclick="showPanel('p-overview',this)"><span class="si-icon">🏠</span> Overview</button>
+      <button class="sidebar-item" onclick="showPanel('p-appointments',this)"><span class="si-icon">📅</span> Appointments <span class="sidebar-badge" id="appt-badge">0</span></button>
+      <button class="sidebar-item" onclick="showPanel('p-records',this)"><span class="si-icon">📋</span> Health Records</button>
+      <button class="sidebar-item" onclick="showPanel('p-medications',this)"><span class="si-icon">💊</span> Medications</button>
+      <button class="sidebar-item" onclick="showPanel('p-book',this)"><span class="si-icon">🔍</span> Book Appointment</button>
+    </div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Health</span>
+      <button class="sidebar-item" onclick="showPanel('p-vitals',this)"><span class="si-icon">❤️</span> Vitals & Reports</button>
+      <button class="sidebar-item" onclick="showPanel('p-emergency',this)"><span class="si-icon">🚨</span> Emergency SOS</button>
+    </div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Account</span>
+      <button class="sidebar-item" onclick="showPanel('p-profile',this)"><span class="si-icon">⚙️</span> My Profile</button>
+    </div>
+  </div>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div class="dash-main">
+
+    <!-- OVERVIEW -->
+    <div class="dash-panel active" id="p-overview">
+      <div class="dash-header">
+        <div class="dash-title">Good morning 👋</div>
+        <div class="dash-sub">Here's your health summary for today</div>
+      </div>
+      <div class="dash-grid">
+        <div class="dash-stat-card"><div class="dsc-icon">📅</div><div class="dsc-num" id="stat-upcoming">—</div><div class="dsc-lbl">Upcoming Appointments</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">📋</div><div class="dsc-num" id="stat-records">—</div><div class="dsc-lbl">Health Records</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">💊</div><div class="dsc-num" id="stat-meds">—</div><div class="dsc-lbl">Active Medications</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">🩺</div><div class="dsc-num">12</div><div class="dsc-lbl">Total Visits</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="dash-card">
+          <div class="dash-card-title">Upcoming Appointments <a onclick="showPanel('p-appointments',null)">View All</a></div>
+          <div id="overview-upcoming"><div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">Loading...</div></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">Today's Medications</div>
+          <div id="overview-meds"><div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">Loading...</div></div>
+        </div>
+      </div>
+      <div class="dash-card" style="margin-top:0">
+        <div class="dash-card-title">Recent Health Records <a onclick="showPanel('p-records',null)">View All</a></div>
+        <div id="overview-records"></div>
+      </div>
+    </div>
+
+    <!-- APPOINTMENTS -->
+    <div class="dash-panel" id="p-appointments">
+      <div class="dash-header"><div class="dash-title">My Appointments</div><div class="dash-sub">All your past and upcoming appointments</div></div>
+      <div class="dash-card">
+        <div class="dash-card-title">Upcoming</div>
+        <div id="appt-upcoming"><div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">Loading...</div></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">Past Visits</div>
+        <div id="appt-past"><div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">Loading...</div></div>
+      </div>
+      <button class="btn-primary" onclick="showPanel('p-book',null)">+ Book New Appointment</button>
+    </div>
+
+    <!-- HEALTH RECORDS -->
+    <div class="dash-panel" id="p-records">
+      <div class="dash-header"><div class="dash-title">Health Records</div><div class="dash-sub">Your complete medical history in one secure place</div></div>
+      <div class="dash-card">
+        <div class="dash-card-title">All Records</div>
+        <div id="records-list"><div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">Loading...</div></div>
+      </div>
+      <label class="btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+        📤 Upload New Record
+        <input type="file" style="display:none" accept=".pdf,.jpg,.jpeg,.png" onchange="uploadRecord(this)"/>
+      </label>
+    </div>
+
+    <!-- MEDICATIONS -->
+    <div class="dash-panel" id="p-medications">
+      <div class="dash-header"><div class="dash-title">My Medications</div><div class="dash-sub">Active prescriptions and reminder schedule</div></div>
+      <div class="dash-card">
+        <div class="dash-card-title">Active Medications</div>
+        <div id="medications-list"><div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">Loading...</div></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">Add Medication</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <input class="form-control" id="new-med-name" placeholder="Medicine name"/>
+          <input class="form-control" id="new-med-dose" placeholder="Dose (e.g. 1 tablet)"/>
+          <input class="form-control" id="new-med-freq" placeholder="Frequency (e.g. After meals)"/>
+          <input class="form-control" id="new-med-time" placeholder="Time (e.g. 8:00 AM)"/>
+        </div>
+        <button class="btn-primary" style="padding:10px 20px;font-size:.88rem" onclick="addMedication()">+ Add Medication</button>
+      </div>
+    </div>
+
+    <!-- BOOK APPOINTMENT -->
+    <div class="dash-panel" id="p-book">
+      <div class="dash-header"><div class="dash-title">Book Appointment</div><div class="dash-sub">Find a specialist and book a slot instantly</div></div>
+      <div class="dash-card" style="margin-bottom:20px">
+        <div class="dash-card-title">Search Hospitals</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px">
+          <input class="form-control" placeholder="🔍 Specialty or doctor name"/>
+          <select class="form-control">
+            <option>Any Location</option>
+            <option>Jubilee Hills</option><option>Secunderabad</option>
+            <option>Banjara Hills</option><option>Gachibowli</option>
+            <option>Madhapur</option>
+          </select>
+          <button class="btn-primary" style="height:46px;padding:0 20px;border-radius:10px">Search</button>
+        </div>
+      </div>
+      <div class="book-grid">
+        <div class="book-card"><div style="font-size:1.5rem;margin-bottom:8px">🏥</div><div class="book-hosp">Apollo Hospitals</div><div class="book-spec">Cardiology · Dr. S. Rao</div><div class="book-slots">✓ 3 slots available today</div><button class="btn-primary" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;font-size:.82rem" onclick="bookAppointment('Dr. S. Rao','Cardiology','Apollo Hospitals',600)">Book Now</button></div>
+        <div class="book-card"><div style="font-size:1.5rem;margin-bottom:8px">🏨</div><div class="book-hosp">KIMS Hospital</div><div class="book-spec">Orthopaedics · Dr. P. Mehta</div><div class="book-slots">✓ 5 slots available today</div><button class="btn-primary" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;font-size:.82rem" onclick="bookAppointment('Dr. P. Mehta','Orthopaedics','KIMS Hospital',500)">Book Now</button></div>
+        <div class="book-card"><div style="font-size:1.5rem;margin-bottom:8px">🏩</div><div class="book-hosp">Yashoda Hospital</div><div class="book-spec">Neurology · Dr. V. Iyer</div><div class="book-slots">✓ 2 slots available today</div><button class="btn-primary" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;font-size:.82rem" onclick="bookAppointment('Dr. V. Iyer','Neurology','Yashoda Hospital',700)">Book Now</button></div>
+        <div class="book-card"><div style="font-size:1.5rem;margin-bottom:8px">🏥</div><div class="book-hosp">Care Hospitals</div><div class="book-spec">General Medicine · Dr. R. Gupta</div><div class="book-slots">✓ 8 slots available today</div><button class="btn-primary" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;font-size:.82rem" onclick="bookAppointment('Dr. R. Gupta','General Medicine','Care Hospitals',400)">Book Now</button></div>
+        <div class="book-card"><div style="font-size:1.5rem;margin-bottom:8px">🏨</div><div class="book-hosp">Sunshine Hospital</div><div class="book-spec">Dermatology · Dr. A. Sharma</div><div class="book-slots">✓ 4 slots available today</div><button class="btn-primary" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;font-size:.82rem" onclick="bookAppointment('Dr. A. Sharma','Dermatology','Sunshine Hospital',450)">Book Now</button></div>
+        <div class="book-card"><div style="font-size:1.5rem;margin-bottom:8px">🏥</div><div class="book-hosp">Medicover</div><div class="book-spec">Diabetology · Dr. K. Nair</div><div class="book-slots">✓ 6 slots available today</div><button class="btn-primary" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;font-size:.82rem" onclick="bookAppointment('Dr. K. Nair','Diabetology','Medicover',500)">Book Now</button></div>
+      </div>
+    </div>
+
+    <!-- VITALS -->
+    <div class="dash-panel" id="p-vitals">
+      <div class="dash-header"><div class="dash-title">Vitals & Reports</div><div class="dash-sub">Your latest health measurements</div></div>
+      <div class="vitals-grid" style="margin-bottom:20px">
+        <div class="vital-card"><div class="vital-icon">❤️</div><div class="vital-val" id="stat-heartrate">—</div><div class="vital-lbl">Heart Rate</div></div>
+        <div class="vital-card"><div class="vital-icon">🩸</div><div class="vital-val" id="stat-bp">—</div><div class="vital-lbl">Blood Pressure</div></div>
+        <div class="vital-card"><div class="vital-icon">🌡️</div><div class="vital-val" id="stat-temp">—</div><div class="vital-lbl">Body Temp</div></div>
+        <div class="vital-card"><div class="vital-icon">💉</div><div class="vital-val" id="stat-sugar">—</div><div class="vital-lbl">Blood Sugar</div></div>
+        <div class="vital-card"><div class="vital-icon">⚖️</div><div class="vital-val" id="stat-weight">—</div><div class="vital-lbl">Weight</div></div>
+        <div class="vital-card"><div class="vital-icon">🫁</div><div class="vital-val" id="stat-spo2">—</div><div class="vital-lbl">SpO2</div></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">Update Vitals</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <input class="form-control" id="v-hr"     placeholder="Heart Rate (e.g. 72 bpm)"/>
+          <input class="form-control" id="v-bp"     placeholder="BP (e.g. 120/80)"/>
+          <input class="form-control" id="v-temp"   placeholder="Temp (e.g. 36.8°C)"/>
+          <input class="form-control" id="v-sugar"  placeholder="Blood Sugar (e.g. 98 mg/dL)"/>
+          <input class="form-control" id="v-weight" placeholder="Weight (e.g. 72 kg)"/>
+          <input class="form-control" id="v-spo2"   placeholder="SpO2 (e.g. 98%)"/>
+        </div>
+        <button class="btn-primary" style="padding:10px 20px;font-size:.88rem" onclick="saveVitals()">💾 Save Vitals to Database</button>
+      </div>
+    </div>
+
+    <!-- EMERGENCY SOS -->
+    <div class="dash-panel" id="p-emergency">
+      <div class="dash-header"><div class="dash-title">Emergency SOS</div><div class="dash-sub">One-tap emergency response system</div></div>
+      <div class="dash-card" style="text-align:center;padding:48px">
+        <div style="position:relative;display:inline-block;margin-bottom:28px">
+          <div style="position:absolute;inset:-20px;border-radius:50%;border:2px solid rgba(220,38,38,.3);animation:sos-ring 2s ease-out infinite"></div>
+          <div style="position:absolute;inset:-35px;border-radius:50%;border:2px solid rgba(220,38,38,.15);animation:sos-ring 2s .5s ease-out infinite"></div>
+          <button onclick="triggerSOS()" style="width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,#FF6B6B,#DC2626 70%);border:none;cursor:pointer;font-weight:800;font-size:1.5rem;color:white;box-shadow:0 0 0 8px rgba(220,38,38,.15),0 8px 32px rgba(220,38,38,.4);position:relative;z-index:1;transition:transform .2s" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">SOS</button>
+        </div>
+        <div style="font-size:1rem;font-weight:600;color:var(--ink);margin-bottom:8px">Tap SOS to trigger emergency response</div>
+        <div style="font-size:.85rem;color:var(--ink-light);margin-bottom:24px">Family, nearby hospitals, and ambulance notified instantly with your live location.</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:400px;margin:0 auto 24px">
+          <div style="background:var(--teal-pale);border:1px solid var(--border-teal);border-radius:12px;padding:16px;text-align:center"><div style="font-size:1.3rem">📍</div><div style="font-size:.75rem;font-weight:600;color:var(--teal);margin-top:4px">GPS Active</div></div>
+          <div style="background:var(--teal-pale);border:1px solid var(--border-teal);border-radius:12px;padding:16px;text-align:center"><div style="font-size:1.3rem">👨‍👩‍👧</div><div style="font-size:.75rem;font-weight:600;color:var(--teal);margin-top:4px">2 Contacts</div></div>
+          <div style="background:var(--teal-pale);border:1px solid var(--border-teal);border-radius:12px;padding:16px;text-align:center"><div style="font-size:1.3rem">🏥</div><div style="font-size:.75rem;font-weight:600;color:var(--teal);margin-top:4px">3 Nearby</div></div>
+        </div>
+        <div id="sos-log" style="text-align:left;max-width:480px;margin:0 auto"></div>
+      </div>
+    </div>
+
+    <!-- MY PROFILE -->
+    <div class="dash-panel" id="p-profile">
+      <div class="dash-header"><div class="dash-title">My Profile</div><div class="dash-sub">Manage your personal and medical information</div></div>
+      <div class="dash-card" id="profile-form-section">
+        <div class="dash-card-title">Personal Information</div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="prof-fname"/></div>
+          <div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="prof-lname"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Date of Birth</label><input class="form-control" type="date" id="prof-dob"/></div>
+          <div class="form-group">
+            <label class="form-label">Blood Group</label>
+            <select class="form-control" id="prof-blood">
+              <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+              <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Mobile Number</label><input class="form-control" id="prof-mobile"/></div>
+        <div class="form-group"><label class="form-label">Email Address</label><input class="form-control" id="prof-email"/></div>
+        <div class="form-group"><label class="form-label">Known Allergies</label><input class="form-control" id="prof-allergies" placeholder="e.g. Penicillin, Aspirin"/></div>
+        <div class="form-group"><label class="form-label">Emergency Contact</label><input class="form-control" id="prof-emergency" placeholder="Name — +91 XXXXX XXXXX"/></div>
+        <button class="form-btn" style="width:auto;padding:12px 28px" onclick="saveProfile()">💾 Save to Database</button>
+      </div>
+    </div>
+
+  </div><!-- /dash-main -->
+</div><!-- /dash-wrap -->
+
+<!-- ── WHATSAPP ── -->
+<div class="wa-fab">
+  <div class="wa-chat" id="waChat">
+    <div class="wa-chat-head">
+      <div class="wa-chat-avatar">🏥</div>
+      <div><div class="wa-chat-name">E-Hospitee Support</div><div class="wa-chat-status"><span class="wa-online-dot"></span> Online</div></div>
+      <button class="wa-chat-close" onclick="toggleChat()">✕</button>
+    </div>
+    <div class="wa-chat-tabs">
+      <button class="wa-chat-tab active" onclick="switchWaTab('chat',this)">💬 Chat</button>
+      <button class="wa-chat-tab" onclick="switchWaTab('features',this)">⚡ Features</button>
+      <button class="wa-chat-tab" onclick="switchWaTab('appointments',this)">📅 Appts</button>
+    </div>
+    <div class="wa-tab-content active" id="wa-tab-chat">
+      <div class="wa-messages" id="waMessages">
+        <div class="wa-msg wa-msg-in">👋 Hi! Welcome to your E-Hospitee dashboard. How can I help?<div class="wa-msg-time">Now</div></div>
+      </div>
+      <div class="wa-quick-replies">
+        <button class="wa-qr-btn" onclick="sendQuickReply('Book an appointment')">📅 Book</button>
+        <button class="wa-qr-btn" onclick="sendQuickReply('Show my health records')">📋 Records</button>
+        <button class="wa-qr-btn" onclick="sendQuickReply('Medication reminders')">💊 Meds</button>
+        <button class="wa-qr-btn" onclick="sendQuickReply('Emergency SOS help')">🚨 SOS</button>
+      </div>
+      <div class="wa-emoji-picker" id="waEmojiPicker"><div class="wa-emoji-grid" id="waEmojiGrid"></div></div>
+      <div class="wa-input-row">
+        <div class="wa-input-wrap">
+          <button class="wa-emoji-btn" onclick="toggleEmojiPicker(event)">😊</button>
+          <textarea class="wa-input" id="waInput" rows="1" placeholder="Type a message..." onkeydown="handleWaKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="wa-attach-btn" onclick="showToast('📎 Coming soon!')">📎</button>
+        </div>
+        <button class="wa-send-btn" onclick="sendWaMessage()"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+    <div class="wa-tab-content" id="wa-tab-features">
+      <div class="wa-features-list">
+        <div class="wa-feature-item" onclick="switchWaTab('chat',document.querySelector('.wa-chat-tab'));sendQuickReply('Book an appointment')"><div class="wa-feat-icon">📅</div><div><div class="wa-feat-title">Book Appointment</div><div class="wa-feat-sub">Find & book specialists instantly</div></div></div>
+        <div class="wa-feature-item" onclick="switchWaTab('chat',document.querySelector('.wa-chat-tab'));sendQuickReply('Emergency SOS help')"><div class="wa-feat-icon">🚨</div><div><div class="wa-feat-title">Emergency SOS</div><div class="wa-feat-sub">Ambulance dispatch, family alert</div></div></div>
+        <div class="wa-feature-item" onclick="switchWaTab('chat',document.querySelector('.wa-chat-tab'));sendQuickReply('Show my health records')"><div class="wa-feat-icon">📋</div><div><div class="wa-feat-title">Health Records</div><div class="wa-feat-sub">View prescriptions & lab reports</div></div></div>
+        <div class="wa-feature-item" onclick="switchWaTab('chat',document.querySelector('.wa-chat-tab'));sendQuickReply('Medication reminders')"><div class="wa-feat-icon">💊</div><div><div class="wa-feat-title">Medication Reminders</div><div class="wa-feat-sub">Daily reminders on WhatsApp</div></div></div>
+        <div class="wa-feature-item" onclick="switchWaTab('chat',document.querySelector('.wa-chat-tab'));sendQuickReply('Doctor consultation')"><div class="wa-feat-icon">🩺</div><div><div class="wa-feat-title">Doctor Consultation</div><div class="wa-feat-sub">Chat with your doctor</div></div></div>
+        <div class="wa-feature-item" onclick="switchWaTab('chat',document.querySelector('.wa-chat-tab'));sendQuickReply('Blood donor request')"><div class="wa-feat-icon">🩸</div><div><div class="wa-feat-title">Blood Donor Network</div><div class="wa-feat-sub">Find donors near you</div></div></div>
+      </div>
+    </div>
+    <div class="wa-tab-content" id="wa-tab-appointments">
+      <div class="wa-appt-list">
+        <div style="font-size:.75rem;font-weight:600;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em;padding:4px 0">Upcoming</div>
+        <div class="wa-appt-card">
+          <div class="wa-appt-doc">🫀 Dr. S. Rao — Cardiology</div>
+          <div class="wa-appt-info">Apollo Hospitals · 12 Mar 2026 · 10:30 AM</div>
+          <div class="wa-appt-action">
+            <button class="wa-appt-btn wa-appt-btn-green" onclick="showToast('Reminder set on WhatsApp!')">⏰ Remind Me</button>
+            <button class="wa-appt-btn" style="border:1.5px solid #25D366;background:white;color:#128C7E" onclick="showToast('Appointment cancelled')">✕ Cancel</button>
+          </div>
+        </div>
+        <div class="wa-appt-card">
+          <div class="wa-appt-doc">🦴 Dr. P. Mehta — Orthopaedics</div>
+          <div class="wa-appt-info">KIMS Hospital · 18 Mar 2026 · 3:00 PM</div>
+          <div class="wa-appt-action">
+            <button class="wa-appt-btn wa-appt-btn-green" onclick="showToast('Reminder set on WhatsApp!')">⏰ Remind Me</button>
+            <button class="wa-appt-btn" style="border:1.5px solid #25D366;background:white;color:#128C7E" onclick="showToast('Appointment cancelled')">✕ Cancel</button>
+          </div>
+        </div>
+        <button onclick="showPanel('p-book',null);toggleChat()" style="width:100%;padding:11px;border-radius:10px;font-size:.85rem;font-weight:600;background:#25D366;color:white;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px">📅 Book New Appointment</button>
+      </div>
+    </div>
+  </div>
+  <div style="position:relative">
+    <div class="wa-pulse"></div>
+    <button class="wa-btn" onclick="toggleChat()">
+      <div class="wa-dot" id="waDot">1</div>
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      <div class="wa-tooltip">Chat on WhatsApp</div>
+    </button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

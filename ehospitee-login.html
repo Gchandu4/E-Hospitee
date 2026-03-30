@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>E-Hospitee — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body id="page-login">
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">🏥</div>
+      <span class="logo-text">E-Hospi<span>tee</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">← Back to Home</a></li>
+      <li><a href="register.html" class="nav-btn">Create Account</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── LOGIN FORM ── -->
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-mark" style="width:44px;height:44px;font-size:1.3rem">🏥</div>
+      <span class="logo-text" style="font-size:1.7rem">E-Hospi<span>tee</span></span>
+    </div>
+    <h2 class="auth-title">Welcome back</h2>
+    <p class="auth-sub">Sign in to your E-Hospitee account</p>
+
+    <!-- Role Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchLoginTab('patient', this)">👤 Patient</button>
+      <button class="auth-tab" onclick="switchLoginTab('hospital', this)">🏥 Hospital</button>
+    </div>
+
+    <!-- Patient Login -->
+    <div id="login-patient">
+      <div class="form-group">
+        <label class="form-label">Mobile Number or Email</label>
+        <input class="form-control" type="text" id="login-id" placeholder="+91 98765 43210 or email"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" id="login-pw" placeholder="Enter your password" onkeydown="if(event.key==='Enter') handleLogin('patient')"/>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-mid);cursor:pointer">
+          <input type="checkbox" style="accent-color:var(--teal)"/> Remember me
+        </label>
+        <a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a>
+      </div>
+      <button class="form-btn" onclick="handleLogin('patient')">Sign In as Patient →</button>
+    </div>
+
+    <!-- Hospital Login -->
+    <div id="login-hospital" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Hospital Email</label>
+        <input class="form-control" type="email" id="hosp-login-id" placeholder="admin@hospital.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" id="hosp-login-pw" placeholder="Enter your password" onkeydown="if(event.key==='Enter') handleLogin('hospital')"/>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-mid);cursor:pointer">
+          <input type="checkbox" style="accent-color:var(--teal)"/> Remember me
+        </label>
+        <a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a>
+      </div>
+      <button class="form-btn" onclick="handleLogin('hospital')">Sign In as Hospital →</button>
+    </div>
+
+    <div class="auth-divider">or try a demo</div>
+    <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-patient')">
+      🎯 Patient Demo — (rajesh@demo.com / demo123)
+    </button>
+    <div style="height:10px"></div>
+    <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-hospital')">
+      🏥 Hospital Demo — (admin@apollo.com / demo123)
+    </button>
+
+    <div class="auth-switch">
+      Don't have an account? <a href="register.html">Sign up here</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
