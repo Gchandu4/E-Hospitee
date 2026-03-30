@@ -82,6 +82,134 @@ const SecureLogger = {
   }
 };
 
+// ── INPUT VALIDATION & SANITIZATION ──
+const Sanitize = {
+  // Escape HTML special chars — prevents XSS in innerHTML rendering
+  html(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  },
+  // Strip all HTML tags — for plain text fields stored in DB
+  text(str) {
+    if (str == null) return '';
+    return String(str).replace(/<[^>]*>/g, '').trim().slice(0, 500);
+  },
+  // Allow only safe filename characters
+  filename(str) {
+    if (str == null) return 'upload';
+    return String(str).replace(/[^a-zA-Z0-9._\-]/g, '_').slice(0, 100);
+  }
+};
+
+const Validate = {
+  // Returns error string or null if valid
+  name(val, label = 'Name') {
+    if (!val || val.trim().length < 1) return `${label} is required`;
+    if (val.trim().length > 100) return `${label} must be under 100 characters`;
+    if (/<|>|script|javascript/i.test(val)) return `${label} contains invalid characters`;
+    return null;
+  },
+  email(val) {
+    if (!val || !val.trim()) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) return 'Invalid email format';
+    if (val.length > 254) return 'Email too long';
+    return null;
+  },
+  mobile(val) {
+    if (!val || !val.trim()) return null; // optional
+    const digits = val.replace(/[\s\-\+\(\)]/g, '');
+    if (!/^\d{7,15}$/.test(digits)) return 'Invalid mobile number';
+    return null;
+  },
+  date(val) {
+    if (!val) return null; // optional
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return 'Invalid date format (YYYY-MM-DD)';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return 'Invalid date';
+    if (d > new Date()) return 'Date cannot be in the future';
+    return null;
+  },
+  bloodGroup(val) {
+    if (!val) return null;
+    if (!/^(A|B|AB|O)[+-]$/.test(val)) return 'Invalid blood group';
+    return null;
+  },
+  text(val, label = 'Field', maxLen = 500) {
+    if (!val || !val.trim()) return null; // optional
+    if (val.length > maxLen) return `${label} must be under ${maxLen} characters`;
+    if (/<script|javascript:|on\w+\s*=/i.test(val)) return `${label} contains invalid content`;
+    return null;
+  },
+  vitals: {
+    heartRate: v => !v || /^\d{1,3}\s*(bpm)?$/i.test(v.trim()) ? null : 'Invalid heart rate (e.g. 72 bpm)',
+    bp:        v => !v || /^\d{2,3}\/\d{2,3}$/.test(v.trim()) ? null : 'Invalid BP (e.g. 120/80)',
+    temp:      v => !v || /^\d{2,3}(\.\d)?\s*°?[CF]?$/i.test(v.trim()) ? null : 'Invalid temperature (e.g. 36.8°C)',
+    sugar:     v => !v || /^\d{2,3}\s*(mg\/dL)?$/i.test(v.trim()) ? null : 'Invalid blood sugar (e.g. 98 mg/dL)',
+    weight:    v => !v || /^\d{2,3}(\.\d)?\s*(kg|lbs)?$/i.test(v.trim()) ? null : 'Invalid weight (e.g. 72 kg)',
+    spo2:      v => !v || /^\d{2,3}\s*%?$/.test(v.trim()) ? null : 'Invalid SpO2 (e.g. 98%)',
+  },
+  file(file) {
+    const ALLOWED_TYPES = ['application/pdf','image/jpeg','image/png','image/jpg'];
+    const MAX_SIZE_MB = 5;
+    if (!file) return 'No file selected';
+    if (!ALLOWED_TYPES.includes(file.type)) return 'Only PDF, JPG, and PNG files are allowed';
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) return `File must be under ${MAX_SIZE_MB}MB`;
+    return null;
+  },
+  chatMessage(val) {
+    if (!val || !val.trim()) return 'Message cannot be empty';
+    if (val.length > 500) return 'Message too long (max 500 characters)';
+    return null;
+  }
+};
+
+// ── ABUSE PROTECTION: Per-action rate limiting ──
+const ActionLimit = {
+  _limits: {},
+  // key: action name, max: max calls, windowMs: time window
+  check(key, max, windowMs) {
+    const now = Date.now();
+    const state = this._limits[key] || { count: 0, firstAt: now };
+    if (now - state.firstAt > windowMs) {
+      this._limits[key] = { count: 1, firstAt: now };
+      return { allowed: true };
+    }
+    if (state.count >= max) {
+      const remaining = Math.ceil((windowMs - (now - state.firstAt)) / 1000);
+      SecureLogger.anomaly('action_rate_limit', { key, count: state.count });
+      return { allowed: false, remaining };
+    }
+    this._limits[key] = { count: state.count + 1, firstAt: state.firstAt };
+    return { allowed: true };
+  }
+};
+
+// ── BOT DETECTION: Honeypot + timing check ──
+const BotDetect = {
+  _loadTime: Date.now(),
+  // Returns true if submission looks like a bot
+  check(honeypotFieldId) {
+    // Honeypot: if a hidden field has a value, it's a bot
+    const hp = document.getElementById(honeypotFieldId);
+    if (hp && hp.value) {
+      SecureLogger.anomaly('bot_honeypot_triggered', { field: honeypotFieldId });
+      return true;
+    }
+    // Timing: real humans take > 2 seconds to fill a form
+    if (Date.now() - this._loadTime < 2000) {
+      SecureLogger.anomaly('bot_timing_check', { elapsed: Date.now() - this._loadTime });
+      return true;
+    }
+    return false;
+  }
+};
+
 // ── SECURITY: Password hashing via Web Crypto API (SHA-256 + salt) ──
 const Auth = {
   // Hash password with a random salt using Web Crypto
@@ -348,20 +476,51 @@ async function handleRegister() {
   const btn = document.getElementById('reg-btn');
   btn.textContent = 'Creating account...'; btn.disabled = true;
 
+  // Bot detection
+  if (BotDetect.check('reg-honeypot')) {
+    btn.textContent = 'Create Account →'; btn.disabled = false;
+    return;
+  }
+  // Abuse protection: max 3 registrations per 10 minutes
+  const limit = ActionLimit.check('register', 3, 10 * 60 * 1000);
+  if (!limit.allowed) {
+    showToast(`⚠️ Too many attempts. Try again in ${limit.remaining}s.`);
+    btn.textContent = 'Create Account →'; btn.disabled = false;
+    return;
+  }
+
   try {
     if (selectedRole === 'patient') {
       const inputs = document.querySelectorAll('#reg-patient-form input, #reg-patient-form select');
       const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
-      if (!firstName || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
-      if (password !== confirmPw)            { showToast('⚠️ Passwords do not match');           return; }
+
+      const errors = [
+        Validate.name(firstName, 'First name'),
+        Validate.name(lastName, 'Last name'),
+        Validate.email(email),
+        Validate.mobile(mobile),
+        Validate.date(dob),
+        Validate.bloodGroup(bloodGroup),
+      ].filter(Boolean);
+      if (errors.length) { showToast('⚠️ ' + errors[0]); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
+      if (!password) { showToast('⚠️ Password is required'); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
+      if (password !== confirmPw) { showToast('⚠️ Passwords do not match'); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
 
       const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('⚠️ ' + pwError); return; }
-
-      if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered'); return; }
+      if (pwError) { showToast('⚠️ ' + pwError); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
+      if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered'); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
 
       const hashedPassword = await Auth.hashPassword(password);
-      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
+      const user = await DB.add('patients', {
+        firstName: Sanitize.text(firstName),
+        lastName:  Sanitize.text(lastName),
+        mobile:    Sanitize.text(mobile),
+        email:     email.toLowerCase().trim(),
+        dob, bloodGroup,
+        password: hashedPassword,
+        allergies: '', emergencyContact: '',
+        createdAt: new Date().toISOString()
+      });
       DB.setSession(user, 'patient');
       SecureLogger.info('register_success', { type: 'patient', email });
       await loadPatientDash(user);
@@ -371,15 +530,31 @@ async function handleRegister() {
     } else {
       const inputs = document.querySelectorAll('#reg-hospital-form input');
       const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
-      if (!name || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
+
+      const errors = [
+        Validate.name(name, 'Hospital name'),
+        Validate.email(email),
+        Validate.mobile(phone),
+      ].filter(Boolean);
+      if (errors.length) { showToast('⚠️ ' + errors[0]); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
+      if (!password) { showToast('⚠️ Password is required'); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
 
       const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('⚠️ ' + pwError); return; }
-
-      if (await DB.findByEmail('hospitals', email)) { showToast('⚠️ Email already registered'); return; }
+      if (pwError) { showToast('⚠️ ' + pwError); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
+      if (await DB.findByEmail('hospitals', email)) { showToast('⚠️ Email already registered'); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
 
       const hashedPassword = await Auth.hashPassword(password);
-      const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt: new Date().toISOString() });
+      const hosp = await DB.add('hospitals', {
+        name: Sanitize.text(name),
+        regNo: Sanitize.text(regNo),
+        city: Sanitize.text(city),
+        pincode: Sanitize.text(pincode),
+        contactPerson: Sanitize.text(contactPerson),
+        email: email.toLowerCase().trim(),
+        phone: Sanitize.text(phone),
+        password: hashedPassword,
+        createdAt: new Date().toISOString()
+      });
       DB.setSession(hosp, 'hospital');
       SecureLogger.info('register_success', { type: 'hospital', email });
       showToast('✅ Hospital account created!');
@@ -489,10 +664,10 @@ function renderAppointments(appts) {
     <div class="appt-row">
       <div class="appt-avatar2">🩺</div>
       <div class="appt-info">
-        <div class="appt-doc">${a.doctor} — ${a.specialty}</div>
-        <div class="appt-spec">${a.hospital} · ${a.date} · ${a.time}</div>
+        <div class="appt-doc">${Sanitize.html(a.doctor)} — ${Sanitize.html(a.specialty)}</div>
+        <div class="appt-spec">${Sanitize.html(a.hospital)} · ${Sanitize.html(a.date)} · ${Sanitize.html(a.time)}</div>
       </div>
-      <span class="status-badge status-${a.status}">${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span>
+      <span class="status-badge status-${Sanitize.html(a.status)}">${Sanitize.html(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span>
     </div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No appointments found</div>';
 
@@ -507,8 +682,8 @@ function renderRecords(recs) {
   const item = r => `
     <div class="record-item">
       <div class="record-icon">${icons[r.type] || '📄'}</div>
-      <div><div class="record-name">${r.name}</div><div class="record-date">${r.hospital} · ${r.date}</div></div>
-      <button class="record-btn" onclick="showToast('Opening ${r.name}...')">View</button>
+      <div><div class="record-name">${Sanitize.html(r.name)}</div><div class="record-date">${Sanitize.html(r.hospital)} · ${Sanitize.html(r.date)}</div></div>
+      <button class="record-btn" onclick="showToast('Opening record...')">View</button>
     </div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No records found</div>';
 
@@ -523,10 +698,10 @@ function renderMedications(meds) {
     <div class="med-item">
       <div class="med-icon">💊</div>
       <div>
-        <div class="med-name">${m.name}</div>
-        <div class="med-dose">${m.dose} · ${m.frequency} · By ${m.prescribedBy}</div>
+        <div class="med-name">${Sanitize.html(m.name)}</div>
+        <div class="med-dose">${Sanitize.html(m.dose)} · ${Sanitize.html(m.frequency)} · By ${Sanitize.html(m.prescribedBy)}</div>
       </div>
-      <div class="med-time">${m.time}</div>
+      <div class="med-time">${Sanitize.html(m.time)}</div>
     </div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No active medications</div>';
 
@@ -540,7 +715,7 @@ function renderVitals(v) {
     'stat-heartrate': v.heartRate, 'stat-bp': v.bp, 'stat-temp': v.temp,
     'stat-sugar': v.sugar, 'stat-weight': v.weight, 'stat-spo2': v.spo2
   };
-  Object.entries(map).forEach(([id, val]) => _setHTML(id, val));
+  Object.entries(map).forEach(([id, val]) => _setHTML(id, Sanitize.html(val)));
 }
 
 function populateProfileForm(user) {
@@ -566,23 +741,35 @@ function showPanel(id, btn) {
 
 async function saveProfile() {
   if (!currentUser || currentUser.role !== 'patient') return;
+
+  const firstName = _gval('prof-fname'), lastName = _gval('prof-lname'),
+        email = _gval('prof-email'), mobile = _gval('prof-mobile');
+
+  const errors = [
+    Validate.name(firstName, 'First name'),
+    Validate.name(lastName, 'Last name'),
+    Validate.email(email),
+    Validate.mobile(mobile),
+  ].filter(Boolean);
+  if (errors.length) { showToast('⚠️ ' + errors[0]); return; }
+
   const updated = {
     ...currentUser,
-    id: currentUser.id, // ensure id cannot be overridden from form input
+    id: currentUser.id,
     patientId: currentUser.id,
-    firstName:        _gval('prof-fname'),
-    lastName:         _gval('prof-lname'),
+    firstName:        Sanitize.text(firstName),
+    lastName:         Sanitize.text(lastName),
     dob:              _gval('prof-dob'),
     bloodGroup:       _gval('prof-blood'),
-    mobile:           _gval('prof-mobile'),
-    email:            _gval('prof-email'),
-    allergies:        _gval('prof-allergies'),
-    emergencyContact: _gval('prof-emergency'),
+    mobile:           Sanitize.text(mobile),
+    email:            email.toLowerCase().trim(),
+    allergies:        Sanitize.text(_gval('prof-allergies')),
+    emergencyContact: Sanitize.text(_gval('prof-emergency')),
   };
   await DB.put('patients', updated);
   DB.setSession(updated, 'patient');
-  _setHTML('patient-name', updated.firstName);
-  _setHTML('sidebar-patient-name', updated.firstName + ' ' + updated.lastName);
+  _setHTML('patient-name', Sanitize.html(updated.firstName));
+  _setHTML('sidebar-patient-name', Sanitize.html(updated.firstName) + ' ' + Sanitize.html(updated.lastName));
   showToast('✅ Profile saved to database!');
 }
 
@@ -603,8 +790,25 @@ async function addMedication() {
   const name = _gval('new-med-name'), dose = _gval('new-med-dose'),
         freq = _gval('new-med-freq'), time = _gval('new-med-time');
   if (!name) { showToast('⚠️ Enter medication name'); return; }
+
+  const errors = [
+    Validate.text(name, 'Medication name', 100),
+    Validate.text(dose, 'Dose', 100),
+    Validate.text(freq, 'Frequency', 100),
+    Validate.text(time, 'Time', 50),
+  ].filter(Boolean);
+  if (errors.length) { showToast('⚠️ ' + errors[0]); return; }
+
+  // Abuse: max 20 medications per 10 minutes
+  const limit = ActionLimit.check('add_medication', 20, 10 * 60 * 1000);
+  if (!limit.allowed) { showToast(`⚠️ Too many requests. Wait ${limit.remaining}s.`); return; }
+
   await DB.add('medications', {
-    patientId: currentUser.id, name, dose, frequency: freq, time,
+    patientId: currentUser.id,
+    name: Sanitize.text(name),
+    dose: Sanitize.text(dose),
+    frequency: Sanitize.text(freq),
+    time: Sanitize.text(time),
     prescribedBy: 'Self', active: true, createdAt: new Date().toISOString()
   });
   ['new-med-name','new-med-dose','new-med-freq','new-med-time'].forEach(id => _val(id, ''));
@@ -615,12 +819,25 @@ async function addMedication() {
 async function uploadRecord(input) {
   if (!currentUser || !input.files[0]) return;
   const file = input.files[0];
+
+  const fileError = Validate.file(file);
+  if (fileError) { showToast('⚠️ ' + fileError); input.value = ''; return; }
+
+  // Abuse: max 10 uploads per hour
+  const limit = ActionLimit.check('upload_record', 10, 60 * 60 * 1000);
+  if (!limit.allowed) { showToast(`⚠️ Upload limit reached. Wait ${limit.remaining}s.`); return; }
+
+  const safeName = Sanitize.filename(file.name);
   const reader = new FileReader();
   reader.onload = async e => {
     await DB.add('records', {
-      patientId: currentUser.id, name: file.name, type: 'upload',
-      hospital: 'Self Upload', date: new Date().toISOString().split('T')[0],
-      fileData: e.target.result, createdAt: new Date().toISOString()
+      patientId: currentUser.id,
+      name: safeName,
+      type: 'upload',
+      hospital: 'Self Upload',
+      date: new Date().toISOString().split('T')[0],
+      fileData: e.target.result,
+      createdAt: new Date().toISOString()
     });
     renderRecords(await DB.getByIndex('records', 'patientId', currentUser.id));
     showToast('✅ Record uploaded and saved!');
@@ -630,14 +847,23 @@ async function uploadRecord(input) {
 
 async function saveVitals() {
   if (!currentUser) return;
+  const fields = {
+    heartRate: _gval('v-hr'), bp: _gval('v-bp'), temp: _gval('v-temp'),
+    sugar: _gval('v-sugar'), weight: _gval('v-weight'), spo2: _gval('v-spo2')
+  };
+  const errors = Object.entries(fields)
+    .map(([k, v]) => Validate.vitals[k]?.(v))
+    .filter(Boolean);
+  if (errors.length) { showToast('⚠️ ' + errors[0]); return; }
+
   const v = {
     patientId: currentUser.id,
-    heartRate: _gval('v-hr')     || document.getElementById('stat-heartrate').textContent,
-    bp:        _gval('v-bp')     || document.getElementById('stat-bp').textContent,
-    temp:      _gval('v-temp')   || document.getElementById('stat-temp').textContent,
-    sugar:     _gval('v-sugar')  || document.getElementById('stat-sugar').textContent,
-    weight:    _gval('v-weight') || document.getElementById('stat-weight').textContent,
-    spo2:      _gval('v-spo2')   || document.getElementById('stat-spo2').textContent,
+    heartRate: Sanitize.text(fields.heartRate) || document.getElementById('stat-heartrate').textContent,
+    bp:        Sanitize.text(fields.bp)        || document.getElementById('stat-bp').textContent,
+    temp:      Sanitize.text(fields.temp)      || document.getElementById('stat-temp').textContent,
+    sugar:     Sanitize.text(fields.sugar)     || document.getElementById('stat-sugar').textContent,
+    weight:    Sanitize.text(fields.weight)    || document.getElementById('stat-weight').textContent,
+    spo2:      Sanitize.text(fields.spo2)      || document.getElementById('stat-spo2').textContent,
     recordedAt: new Date().toISOString()
   };
   await DB.add('vitals', v);
@@ -786,13 +1012,33 @@ function addMessage(text, type) {
   const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
   const div  = document.createElement('div');
   div.className = 'wa-msg wa-msg-' + type;
-  div.innerHTML = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  // Sanitize user text before rendering — prevents XSS
+  const safeText = type === 'out'
+    ? Sanitize.html(text).replace(/\n/g, '<br>')
+    : text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  div.innerHTML = safeText
     + `<div class="wa-msg-time">${time}${type === 'out' ? ' <span class="wa-tick">✓✓</span>' : ''}</div>`;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
 
-function showTyping() {
+function sendWaMessage() {
+  const input = document.getElementById('waInput');
+  const text  = input.value.trim();
+
+  const msgError = Validate.chatMessage(text);
+  if (msgError) { showToast('⚠️ ' + msgError); return; }
+
+  // Abuse: max 30 messages per minute
+  const limit = ActionLimit.check('chat_message', 30, 60 * 1000);
+  if (!limit.allowed) { showToast(`⚠️ Slow down! Wait ${limit.remaining}s.`); return; }
+
+  addMessage(text, 'out');
+  input.value = ''; input.style.height = 'auto';
+  closeEmojiPicker();
+  showTyping();
+  setTimeout(() => { removeTyping(); addMessage(getReply(text), 'in'); }, 900 + Math.random() * 600);
+}
   const container = document.getElementById('waMessages');
   const t = document.createElement('div');
   t.className = 'wa-typing'; t.id = 'waTyping';

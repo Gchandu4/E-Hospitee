@@ -951,6 +951,8 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
       <div class="form-group"><label class="form-label">Password</label><input class="form-control" type="password" placeholder="Create a strong password"/></div>
     </div>
 
+    <!-- Honeypot: hidden field to catch bots — must remain empty -->
+    <input type="text" id="reg-honeypot" name="website" style="display:none" tabindex="-1" autocomplete="off"/>
     <button class="form-btn" id="reg-btn" onclick="handleRegister()">Create Account →</button>
     <div class="auth-switch">Already have an account? <a onclick="goPage('page-login')">Sign in here</a></div>
   </div>
