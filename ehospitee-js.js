@@ -11,22 +11,7 @@ if (location.protocol !== 'https:' && location.hostname !== 'localhost' && locat
 // The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
 const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  global: {
-    fetch: async (url, options = {}) => {
-      try {
-        const res = await fetch(url, options);
-        if (!res.ok && res.status >= 500) {
-          SecureLogger.error('supabase_api_error', { url, status: res.status });
-        }
-        return res;
-      } catch (err) {
-        SecureLogger.error('supabase_network_error', { url, message: err.message });
-        throw err;
-      }
-    }
-  }
-});
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── SECURE LOGGER ──
 const SecureLogger = {
@@ -331,6 +316,11 @@ const DB = {
     if (error) throw error;
     return data || null;
   },
+  async findByMobile(table, mobile) {
+    const { data, error } = await _sb.from(table).select('*').eq('mobile', mobile).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  },
 
   /* ── Session ── */
   setSession(user, role) {
@@ -494,7 +484,7 @@ async function handleLogin(type) {
     const id = _gval('login-id'), pw = _gval('login-pw');
     if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
     const user = await DB.findByEmail('patients', id) ||
-      (await DB.getAll('patients')).find(u => u.mobile === id);
+      await DB.findByMobile('patients', id);
     if (!user || !(await Auth.verifyPassword(pw, user.password))) {
       RateLimit.record();
       SecureLogger.warn('login_failed', { identifier: id, type: 'patient' });

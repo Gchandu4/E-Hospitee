@@ -1659,6 +1659,11 @@ const DB = {
     if (error) throw error;
     return data || null;
   },
+  async findByMobile(table, mobile) {
+    const { data, error } = await _sb.from(table).select('*').eq('mobile', mobile).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  },
 
   /* ── Session ── */
   setSession(user, role) {
@@ -1745,7 +1750,7 @@ async function handleLogin(type) {
     const pw = document.getElementById('login-pw').value.trim();
     if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
     const user = await DB.findByEmail('patients', id) ||
-      (await DB.getAll('patients')).find(u => u.mobile === id);
+      await DB.findByMobile('patients', id);
     if (!user || !(await Auth.verifyPassword(pw, user.password))) {
       RateLimit.record();
       showToast('⚠️ Invalid credentials');
