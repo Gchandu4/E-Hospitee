@@ -1,4 +1,4 @@
-// ══════════════════════════════════════
+﻿// ══════════════════════════════════════
 // E-HOSPITEE — app.js
 // ══════════════════════════════════════
 
@@ -212,7 +212,6 @@ const BotDetect = {
 
 // ── SECURITY: Password hashing via Web Crypto API (SHA-256 + salt) ──
 const Auth = {
-  // Hash password with a random salt using Web Crypto
   async hashPassword(password) {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -222,9 +221,9 @@ const Auth = {
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
     return `${saltHex}:${hashHex}`;
   },
-
-  // Verify password against stored hash
   async verifyPassword(password, stored) {
+    if (!stored) return false;
+    if (!stored.includes(':')) return stored === password;
     const [saltHex, storedHash] = stored.split(':');
     if (!saltHex || !storedHash) return false;
     const encoder = new TextEncoder();
@@ -233,13 +232,12 @@ const Auth = {
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
     return hashHex === storedHash;
   },
-
-  // Password strength validation
+  isLegacyPassword(stored) { return stored && !stored.includes(':'); },
   validatePassword(password) {
     if (password.length < 8) return 'Password must be at least 8 characters';
     if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
     if (!/[0-9]/.test(password)) return 'Password must contain a number';
-    return null; // valid
+    return null;
   }
 };
 
@@ -247,29 +245,22 @@ const Auth = {
 const RateLimit = {
   _key: 'ehospitee_login_attempts',
   _max: 5,
-  _windowMs: 15 * 60 * 1000, // 15 minutes
-
+  _windowMs: 15 * 60 * 1000,
   _getState() {
     const raw = localStorage.getItem(this._key);
     return raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() };
   },
-
   check() {
     const state = this._getState();
     const now = Date.now();
-    // Reset window if expired
-    if (now - state.firstAttempt > this._windowMs) {
-      localStorage.removeItem(this._key);
-      return { allowed: true };
-    }
+    if (now - state.firstAttempt > this._windowMs) { localStorage.removeItem(this._key); return { allowed: true }; }
     if (state.count >= this._max) {
       const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
-      SecureLogger.anomaly('rate_limit_exceeded', { attempts: state.count, windowMs: this._windowMs });
+      SecureLogger.anomaly('rate_limit_exceeded', { attempts: state.count });
       return { allowed: false, remaining };
     }
     return { allowed: true };
   },
-
   record() {
     const state = this._getState();
     const now = Date.now();
@@ -279,10 +270,7 @@ const RateLimit = {
       localStorage.setItem(this._key, JSON.stringify({ count: state.count + 1, firstAttempt: state.firstAttempt }));
     }
   },
-
-  reset() {
-    localStorage.removeItem(this._key);
-  }
+  reset() { localStorage.removeItem(this._key); }
 };
 
 // ── DATABASE (Supabase) ──
