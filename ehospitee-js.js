@@ -1,19 +1,19 @@
-// ══════════════════════════════════════
-// E-HOSPITEE — app.js (shared across all pages)
-// ══════════════════════════════════════
+﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// E-HOSPITEE â€” app.js (shared across all pages)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-// ── HTTPS ENFORCEMENT ──
+// â”€â”€ HTTPS ENFORCEMENT â”€â”€
 if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
   location.replace('https:' + location.href.substring(location.protocol.length));
 }
 
-// ── SUPABASE CONFIG ──
-// The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
+// â”€â”€ SUPABASE CONFIG â”€â”€
+// The anon key is safe to expose in frontend â€” security is enforced via Supabase Row Level Security (RLS)
 const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── SECURE LOGGER ──
+// â”€â”€ SECURE LOGGER â”€â”€
 const SecureLogger = {
   _isDev: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
   _queue: [],
@@ -58,7 +58,7 @@ const SecureLogger = {
   anomaly(event, data = {}) { this._log('warn', `ANOMALY:${event}`, data); }
 };
 
-// ── INPUT VALIDATION & SANITIZATION ──
+// â”€â”€ INPUT VALIDATION & SANITIZATION â”€â”€
 const Sanitize = {
   html(str) {
     if (str == null) return '';
@@ -115,7 +115,7 @@ const Validate = {
   vitals: {
     heartRate: v => !v||/^\d{1,3}\s*(bpm)?$/i.test(v.trim()) ? null : 'Invalid heart rate (e.g. 72 bpm)',
     bp:        v => !v||/^\d{2,3}\/\d{2,3}$/.test(v.trim()) ? null : 'Invalid BP (e.g. 120/80)',
-    temp:      v => !v||/^\d{2,3}(\.\d)?\s*°?[CF]?$/i.test(v.trim()) ? null : 'Invalid temperature (e.g. 36.8°C)',
+    temp:      v => !v||/^\d{2,3}(\.\d)?\s*Â°?[CF]?$/i.test(v.trim()) ? null : 'Invalid temperature (e.g. 36.8Â°C)',
     sugar:     v => !v||/^\d{2,3}\s*(mg\/dL)?$/i.test(v.trim()) ? null : 'Invalid blood sugar (e.g. 98 mg/dL)',
     weight:    v => !v||/^\d{2,3}(\.\d)?\s*(kg|lbs)?$/i.test(v.trim()) ? null : 'Invalid weight (e.g. 72 kg)',
     spo2:      v => !v||/^\d{2,3}\s*%?$/.test(v.trim()) ? null : 'Invalid SpO2 (e.g. 98%)',
@@ -160,7 +160,7 @@ const BotDetect = {
   }
 };
 
-// ── SECURITY: Password hashing via Web Crypto API ──
+// â”€â”€ SECURITY: Password hashing via Web Crypto API â”€â”€
 const Auth = {
   async hashPassword(password) {
     const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -189,7 +189,7 @@ const Auth = {
   }
 };
 
-// ── SECURITY: Rate limiting ──
+// â”€â”€ SECURITY: Rate limiting â”€â”€
 const RateLimit = {  _key: 'ehospitee_login_attempts',
   _max: 5,
   _windowMs: 15 * 60 * 1000,
@@ -220,7 +220,7 @@ const RateLimit = {  _key: 'ehospitee_login_attempts',
   reset() { localStorage.removeItem(this._key); }
 };
 
-// ── DATABASE (Supabase) ──
+// â”€â”€ DATABASE (Supabase) â”€â”€
 const DB = {
   _prefix: 'ehospitee_',
   _sessionTTL: 8 * 60 * 60 * 1000, // 8 hours
@@ -240,7 +240,7 @@ const DB = {
     } catch { this.clearSession(); }
   },
 
-  /* ── Core CRUD with IDOR protection ── */
+  /* â”€â”€ Core CRUD with IDOR protection â”€â”€ */
   async add(table, data) {
     if (this._patientTables.has(table)) {
       if (!currentUser) throw new Error('Not authenticated');
@@ -325,7 +325,7 @@ const DB = {
     return data || null;
   },
 
-  /* ── Session ── */
+  /* â”€â”€ Session â”€â”€ */
   setSession(user, role) {
     const { password: _omit, ...safeUser } = user;
     currentUser = { ...safeUser, role };
@@ -342,34 +342,34 @@ const DB = {
 
 let currentUser = null;
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PAGE INITIALISATION (DOMContentLoaded)
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 document.addEventListener('DOMContentLoaded', async () => {
   await DB.init().catch(e => console.error('DB init failed:', e));
 
   const pageId = document.body.id;
 
-  // ── Guard protected pages ──
+  // â”€â”€ Guard protected pages â”€â”€
   if (pageId === 'page-patient' || pageId === 'page-hospital') {
     const raw = localStorage.getItem('ehospitee_session');
-    if (!raw) { window.location.href = 'login.html'; return; }
+    if (!raw) { window.location.href = 'ehospitee-login.html'; return; }
     try {
       const session = JSON.parse(raw);
       if (!session.expiresAt || Date.now() > session.expiresAt) {
         DB.clearSession();
-        window.location.href = 'login.html';
+        window.location.href = 'ehospitee-login.html';
         return;
       }
       currentUser = session.user;
     } catch {
       DB.clearSession();
-      window.location.href = 'login.html';
+      window.location.href = 'ehospitee-login.html';
       return;
     }
   }
 
-  // ── Per-page init ──
+  // â”€â”€ Per-page init â”€â”€
   switch (pageId) {
     case 'page-landing':
       initRevealObserver();
@@ -404,9 +404,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // REGISTRATION
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 let selectedRole = 'patient';
 
 function selectRole(r) {
@@ -422,40 +422,54 @@ async function handleRegister() {
   btn.textContent = 'Creating account...'; btn.disabled = true;
   try {
     if (selectedRole === 'patient') {
-      const inputs = document.querySelectorAll('#reg-patient-form input, #reg-patient-form select');
-      const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
-      if (!firstName || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
-      if (password !== confirmPw)             { showToast('⚠️ Passwords do not match');          return; }
+      const firstName  = document.getElementById('reg-fname')?.value.trim() || '';
+      const lastName   = document.getElementById('reg-lname')?.value.trim() || '';
+      const mobile     = document.getElementById('reg-mobile')?.value.trim() || '';
+      const email      = document.getElementById('reg-email')?.value.trim() || '';
+      const dob        = document.getElementById('reg-dob')?.value.trim() || '';
+      const bloodGroup = document.getElementById('reg-blood')?.value.trim() || '';
+      const password   = document.getElementById('reg-password')?.value.trim() || '';
+      const confirmPw  = document.getElementById('reg-confirm')?.value.trim() || '';
+
+      if (!firstName || !email || !password) { showToast('âš ï¸ Please fill all required fields'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (password !== confirmPw) { showToast('âš ï¸ Passwords do not match'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('⚠️ ' + pwError); return; }
-      if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered'); return; }
+      if (pwError) { showToast('âš ï¸ ' + pwError); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (await DB.findByEmail('patients', email)) { showToast('âš ï¸ Email already registered'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
       const hashedPassword = await Auth.hashPassword(password);
-      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt:new Date().toISOString() });
+      const user = await DB.add('patients', { firstName: Sanitize.text(firstName), lastName: Sanitize.text(lastName), mobile: Sanitize.text(mobile), email: email.toLowerCase(), dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt:new Date().toISOString() });
       DB.setSession(user, 'patient');
       SecureLogger.info('register_success', { type: 'patient', email });
-      showToast('✅ Account created! Redirecting...');
-      setTimeout(() => window.location.href = 'patient-dashboard.html', 900);
+      showToast('âœ… Account created! Redirecting...');
+      setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
     } else {
-      const inputs = document.querySelectorAll('#reg-hospital-form input');
-      const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
-      if (!name || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
+      const name          = document.getElementById('reg-hosp-name')?.value.trim() || '';
+      const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || '';
+      const city          = document.getElementById('reg-hosp-city')?.value.trim() || '';
+      const pincode       = document.getElementById('reg-hosp-pin')?.value.trim() || '';
+      const contactPerson = document.getElementById('reg-hosp-contact')?.value.trim() || '';
+      const email         = document.getElementById('reg-hosp-email')?.value.trim() || '';
+      const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || '';
+      const password      = document.getElementById('reg-hosp-password')?.value.trim() || '';
+
+      if (!name || !email || !password) { showToast('âš ï¸ Please fill all required fields'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('⚠️ ' + pwError); return; }
-      if (await DB.findByEmail('hospitals', email)) { showToast('⚠️ Email already registered'); return; }
+      if (pwError) { showToast('âš ï¸ ' + pwError); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (await DB.findByEmail('hospitals', email)) { showToast('âš ï¸ Email already registered'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
       const hashedPassword = await Auth.hashPassword(password);
-      const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt:new Date().toISOString() });
+      const hosp = await DB.add('hospitals', { name: Sanitize.text(name), regNo: Sanitize.text(regNo), city: Sanitize.text(city), pincode: Sanitize.text(pincode), contactPerson: Sanitize.text(contactPerson), email: email.toLowerCase(), phone: Sanitize.text(phone), password: hashedPassword, createdAt:new Date().toISOString() });
       DB.setSession(hosp, 'hospital');
       SecureLogger.info('register_success', { type: 'hospital', email });
-      showToast('✅ Hospital account created! Redirecting...');
-      setTimeout(() => window.location.href = 'hospital-dashboard.html', 900);
+      showToast('âœ… Hospital account created! Redirecting...');
+      setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
     }
-  } catch(e) { SecureLogger.error('register_error', { message: e.message }); showToast('⚠️ Registration failed. Try again.'); console.error(e); }
-  btn.textContent = 'Create Account →'; btn.disabled = false;
+  } catch(e) { SecureLogger.error('register_error', { message: e.message }); showToast('âš ï¸ Registration failed. Try again.'); console.error(e); }
+  btn.textContent = 'Create Account â†’'; btn.disabled = false;
 }
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // LOGIN
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function switchLoginTab(type, btn) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
@@ -466,12 +480,12 @@ function switchLoginTab(type, btn) {
 async function handleLogin(type) {
   if (type === 'demo-patient') {
     const user = await DB.findByEmail('patients', 'rajesh@demo.com');
-    if (user) { DB.setSession(user, 'patient'); window.location.href = 'patient-dashboard.html'; }
+    if (user) { DB.setSession(user, 'patient'); window.location.href = 'ehospitee-patient.html'; }
     return;
   }
   if (type === 'demo-hospital') {
     const hosp = await DB.findByEmail('hospitals', 'admin@apollo.com');
-    if (hosp) { DB.setSession(hosp, 'hospital'); window.location.href = 'hospital-dashboard.html'; }
+    if (hosp) { DB.setSession(hosp, 'hospital'); window.location.href = 'ehospitee-patient.html'; }
     return;
   }
 
@@ -479,19 +493,19 @@ async function handleLogin(type) {
   const limit = RateLimit.check();
   if (!limit.allowed) {
     SecureLogger.anomaly('login_blocked_rate_limit', { remaining: limit.remaining });
-    showToast(`⚠️ Too many attempts. Try again in ${limit.remaining} min.`);
+    showToast(`âš ï¸ Too many attempts. Try again in ${limit.remaining} min.`);
     return;
   }
 
   if (type === 'patient') {
     const id = _gval('login-id'), pw = _gval('login-pw');
-    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
+    if (!id || !pw) { showToast('âš ï¸ Please enter your credentials'); return; }
     const user = await DB.findByEmail('patients', id) ||
       await DB.findByMobile('patients', id);
     if (!user || !(await Auth.verifyPassword(pw, user.password))) {
       RateLimit.record();
       SecureLogger.warn('login_failed', { identifier: id, type: 'patient' });
-      showToast('⚠️ Invalid credentials');
+      showToast('âš ï¸ Invalid credentials');
       return;
     }
     RateLimit.reset();
@@ -501,17 +515,17 @@ async function handleLogin(type) {
       await _sb.from('patients').update({ password: hashed }).eq('id', user.id);
     }
     DB.setSession(user, 'patient');
-    window.location.href = 'patient-dashboard.html';
+    window.location.href = 'ehospitee-patient.html';
     return;
   }
   if (type === 'hospital') {
     const id = _gval('hosp-login-id'), pw = _gval('hosp-login-pw');
-    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
+    if (!id || !pw) { showToast('âš ï¸ Please enter your credentials'); return; }
     const hosp = await DB.findByEmail('hospitals', id);
     if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
       RateLimit.record();
       SecureLogger.warn('login_failed', { identifier: id, type: 'hospital' });
-      showToast('⚠️ Invalid credentials');
+      showToast('âš ï¸ Invalid credentials');
       return;
     }
     RateLimit.reset();
@@ -521,15 +535,15 @@ async function handleLogin(type) {
       await _sb.from('hospitals').update({ password: hashed }).eq('id', hosp.id);
     }
     DB.setSession(hosp, 'hospital');
-    window.location.href = 'hospital-dashboard.html';
+    window.location.href = 'ehospitee-patient.html';
   }
 }
 
 function signOut() { SecureLogger.info('logout', {}); DB.clearSession(); window.location.href = 'index.html'; }
 
-// ══════════════════════════════════════
-// PATIENT DASHBOARD — LOAD & RENDER
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// PATIENT DASHBOARD â€” LOAD & RENDER
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 async function loadPatientDash(user) {
   populateProfileForm(user);
   renderAppointments(await DB.getByIndex('appointments', 'patientId', user.id));
@@ -543,7 +557,7 @@ async function loadPatientDash(user) {
 function renderAppointments(appts) {
   const upcoming = appts.filter(a => a.status === 'upcoming');
   const past     = appts.filter(a => a.status !== 'upcoming');
-  const row = a => `<div class="appt-row"><div class="appt-avatar2">🩺</div><div class="appt-info"><div class="appt-doc">${Sanitize.html(a.doctor)} — ${Sanitize.html(a.specialty)}</div><div class="appt-spec">${Sanitize.html(a.hospital)} · ${Sanitize.html(a.date)} · ${Sanitize.html(a.time)}</div></div><span class="status-badge status-${Sanitize.html(a.status)}">${Sanitize.html(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></div>`;
+  const row = a => `<div class="appt-row"><div class="appt-avatar2">ðŸ©º</div><div class="appt-info"><div class="appt-doc">${Sanitize.html(a.doctor)} â€” ${Sanitize.html(a.specialty)}</div><div class="appt-spec">${Sanitize.html(a.hospital)} Â· ${Sanitize.html(a.date)} Â· ${Sanitize.html(a.time)}</div></div><span class="status-badge status-${Sanitize.html(a.status)}">${Sanitize.html(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No appointments found</div>';
   _setHTML('overview-upcoming', upcoming.length ? upcoming.slice(0,2).map(row).join('') : empty);
   _setHTML('appt-upcoming',     upcoming.length ? upcoming.map(row).join('') : empty);
@@ -552,8 +566,8 @@ function renderAppointments(appts) {
 }
 
 function renderRecords(recs) {
-  const icons = { lab:'🧪', prescription:'🩺', report:'📄', summary:'📋', upload:'📁' };
-  const item  = r => `<div class="record-item"><div class="record-icon">${icons[r.type]||'📄'}</div><div><div class="record-name">${Sanitize.html(r.name)}</div><div class="record-date">${Sanitize.html(r.hospital)} · ${Sanitize.html(r.date)}</div></div><button class="record-btn" onclick="showToast('Opening record...')">View</button></div>`;
+  const icons = { lab:'ðŸ§ª', prescription:'ðŸ©º', report:'ðŸ“„', summary:'ðŸ“‹', upload:'ðŸ“' };
+  const item  = r => `<div class="record-item"><div class="record-icon">${icons[r.type]||'ðŸ“„'}</div><div><div class="record-name">${Sanitize.html(r.name)}</div><div class="record-date">${Sanitize.html(r.hospital)} Â· ${Sanitize.html(r.date)}</div></div><button class="record-btn" onclick="showToast('Opening record...')">View</button></div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No records found</div>';
   _setHTML('records-list',     recs.length ? recs.map(item).join('') : empty);
   _setHTML('overview-records', recs.slice(0,2).map(item).join(''));
@@ -562,7 +576,7 @@ function renderRecords(recs) {
 
 function renderMedications(meds) {
   const active = meds.filter(m => m.active);
-  const item   = m => `<div class="med-item"><div class="med-icon">💊</div><div><div class="med-name">${Sanitize.html(m.name)}</div><div class="med-dose">${Sanitize.html(m.dose)} · ${Sanitize.html(m.frequency)} · ${Sanitize.html(m.prescribedBy)}</div></div><div class="med-time">${Sanitize.html(m.time)}</div></div>`;
+  const item   = m => `<div class="med-item"><div class="med-icon">ðŸ’Š</div><div><div class="med-name">${Sanitize.html(m.name)}</div><div class="med-dose">${Sanitize.html(m.dose)} Â· ${Sanitize.html(m.frequency)} Â· ${Sanitize.html(m.prescribedBy)}</div></div><div class="med-time">${Sanitize.html(m.time)}</div></div>`;
   const empty  = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No active medications</div>';
   _setHTML('medications-list', active.length ? active.map(item).join('') : empty);
   _setHTML('overview-meds',    active.length ? active.map(item).join('') : empty);
@@ -594,13 +608,13 @@ function showPanel(id, btn) {
   if (btn) { document.querySelectorAll('#page-patient .sidebar-item').forEach(s => s.classList.remove('active')); btn.classList.add('active'); }
 }
 
-// ── Patient DB Actions ──
+// â”€â”€ Patient DB Actions â”€â”€
 async function saveProfile() {
   if (!currentUser || currentUser.role !== 'patient') return;
   const firstName = _gval('prof-fname'), lastName = _gval('prof-lname'),
         email = _gval('prof-email'), mobile = _gval('prof-mobile');
   const errors = [Validate.name(firstName,'First name'),Validate.name(lastName,'Last name'),Validate.email(email),Validate.mobile(mobile)].filter(Boolean);
-  if (errors.length) { showToast('⚠️ ' + errors[0]); return; }
+  if (errors.length) { showToast('âš ï¸ ' + errors[0]); return; }
   const updated = { ...currentUser, id:currentUser.id, patientId:currentUser.id,
     firstName:Sanitize.text(firstName), lastName:Sanitize.text(lastName),
     dob:_gval('prof-dob'), bloodGroup:document.getElementById('prof-blood')?.value||'',
@@ -610,46 +624,46 @@ async function saveProfile() {
   DB.setSession(updated, 'patient');
   _setHTML('patient-name', Sanitize.html(updated.firstName));
   _setHTML('sidebar-patient-name', Sanitize.html(updated.firstName) + ' ' + Sanitize.html(updated.lastName));
-  showToast('✅ Profile saved to database!');
+  showToast('âœ… Profile saved to database!');
 }
 
 async function bookAppointment(doctor, specialty, hospital, fee) {
-  if (!currentUser) { window.location.href = 'login.html'; return; }
+  if (!currentUser) { window.location.href = 'ehospitee-login.html'; return; }
   const limit = ActionLimit.check('book_appointment', 5, 60*60*1000);
-  if (!limit.allowed) { showToast(`⚠️ Too many bookings. Wait ${limit.remaining}s.`); return; }
+  if (!limit.allowed) { showToast(`âš ï¸ Too many bookings. Wait ${limit.remaining}s.`); return; }
   const date = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   await DB.add('appointments', { patientId:currentUser.id, doctor:Sanitize.text(doctor), specialty:Sanitize.text(specialty), hospital:Sanitize.text(hospital), date, time:'10:30 AM', status:'upcoming', fee, createdAt:new Date().toISOString() });
   renderAppointments(await DB.getByIndex('appointments', 'patientId', currentUser.id));
-  showToast(`✅ Appointment booked with ${Sanitize.html(doctor)}!`);
+  showToast(`âœ… Appointment booked with ${Sanitize.html(doctor)}!`);
 }
 
 async function addMedication() {
   if (!currentUser) return;
   const name=_gval('new-med-name'), dose=_gval('new-med-dose'), freq=_gval('new-med-freq'), time=_gval('new-med-time');
-  if (!name) { showToast('⚠️ Enter medication name'); return; }
+  if (!name) { showToast('âš ï¸ Enter medication name'); return; }
   const errors = [Validate.text(name,'Medication name',100),Validate.text(dose,'Dose',100),Validate.text(freq,'Frequency',100),Validate.text(time,'Time',50)].filter(Boolean);
-  if (errors.length) { showToast('⚠️ ' + errors[0]); return; }
+  if (errors.length) { showToast('âš ï¸ ' + errors[0]); return; }
   const limit = ActionLimit.check('add_medication', 20, 10*60*1000);
-  if (!limit.allowed) { showToast(`⚠️ Too many requests. Wait ${limit.remaining}s.`); return; }
+  if (!limit.allowed) { showToast(`âš ï¸ Too many requests. Wait ${limit.remaining}s.`); return; }
   await DB.add('medications', { patientId:currentUser.id, name:Sanitize.text(name), dose:Sanitize.text(dose), frequency:Sanitize.text(freq), time:Sanitize.text(time), prescribedBy:'Self', active:true, createdAt:new Date().toISOString() });
   ['new-med-name','new-med-dose','new-med-freq','new-med-time'].forEach(id => _val(id,''));
   renderMedications(await DB.getByIndex('medications','patientId',currentUser.id));
-  showToast('✅ Medication saved!');
+  showToast('âœ… Medication saved!');
 }
 
 async function uploadRecord(input) {
   if (!currentUser || !input.files[0]) return;
   const file = input.files[0];
   const fileError = Validate.file(file);
-  if (fileError) { showToast('⚠️ ' + fileError); input.value=''; return; }
+  if (fileError) { showToast('âš ï¸ ' + fileError); input.value=''; return; }
   const limit = ActionLimit.check('upload_record', 10, 60*60*1000);
-  if (!limit.allowed) { showToast(`⚠️ Upload limit reached. Wait ${limit.remaining}s.`); return; }
+  if (!limit.allowed) { showToast(`âš ï¸ Upload limit reached. Wait ${limit.remaining}s.`); return; }
   const safeName = Sanitize.filename(file.name);
   const reader = new FileReader();
   reader.onload = async e => {
     await DB.add('records', { patientId:currentUser.id, name:safeName, type:'upload', hospital:'Self Upload', date:new Date().toISOString().split('T')[0], fileData:e.target.result, createdAt:new Date().toISOString() });
     renderRecords(await DB.getByIndex('records','patientId',currentUser.id));
-    showToast('✅ Record uploaded and saved!');
+    showToast('âœ… Record uploaded and saved!');
   };
   reader.readAsDataURL(file);
 }
@@ -658,24 +672,24 @@ async function saveVitals() {
   if (!currentUser) return;
   const fields = { heartRate:_gval('v-hr'), bp:_gval('v-bp'), temp:_gval('v-temp'), sugar:_gval('v-sugar'), weight:_gval('v-weight'), spo2:_gval('v-spo2') };
   const errors = Object.entries(fields).map(([k,v]) => Validate.vitals[k]?.(v)).filter(Boolean);
-  if (errors.length) { showToast('⚠️ ' + errors[0]); return; }
+  if (errors.length) { showToast('âš ï¸ ' + errors[0]); return; }
   const v = { patientId:currentUser.id, heartRate:Sanitize.text(fields.heartRate)||document.getElementById('stat-heartrate')?.textContent, bp:Sanitize.text(fields.bp)||document.getElementById('stat-bp')?.textContent, temp:Sanitize.text(fields.temp)||document.getElementById('stat-temp')?.textContent, sugar:Sanitize.text(fields.sugar)||document.getElementById('stat-sugar')?.textContent, weight:Sanitize.text(fields.weight)||document.getElementById('stat-weight')?.textContent, spo2:Sanitize.text(fields.spo2)||document.getElementById('stat-spo2')?.textContent, recordedAt:new Date().toISOString() };
   await DB.add('vitals', v);
   renderVitals(v);
   ['v-hr','v-bp','v-temp','v-sugar','v-weight','v-spo2'].forEach(id => _val(id,''));
-  showToast('✅ Vitals saved!');
+  showToast('âœ… Vitals saved!');
 }
 
 async function triggerSOS() {
   await DB.add('emergencies', { patientId:currentUser?.id||0, type:'SOS', location:'Hyderabad', status:'dispatched', triggeredAt:new Date().toISOString() });
   const logEl = document.getElementById('sos-log');
-  if (logEl) logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px"><div style="font-weight:700;color:#DC2626;font-size:.88rem">🚨 SOS Triggered — ${new Date().toLocaleTimeString()}</div><div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">✅ Family notified &nbsp;·&nbsp; ✅ 3 Hospitals alerted &nbsp;·&nbsp; ✅ Ambulance dispatched</div></div>` + logEl.innerHTML;
-  showToast('🚨 SOS sent! Ambulance dispatched. Family notified.');
+  if (logEl) logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px"><div style="font-weight:700;color:#DC2626;font-size:.88rem">ðŸš¨ SOS Triggered â€” ${new Date().toLocaleTimeString()}</div><div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">âœ… Family notified &nbsp;Â·&nbsp; âœ… 3 Hospitals alerted &nbsp;Â·&nbsp; âœ… Ambulance dispatched</div></div>` + logEl.innerHTML;
+  showToast('ðŸš¨ SOS sent! Ambulance dispatched. Family notified.');
 }
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HOSPITAL DASHBOARD
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function showHPanel(id, btn) {
   document.querySelectorAll('#page-hospital .dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -688,19 +702,19 @@ function buildBedGrid() {
   const states = ['free','occupied','occupied','free','reserved','occupied','free','occupied','occupied','free','occupied','occupied','reserved','free','occupied','free'];
   states.forEach((s,i) => {
     const b = document.createElement('div');
-    b.className = `bed-cell bed-${s}`; b.textContent = 'B'+(i+1); b.title = `Bed ${i+1} — ${s}`;
+    b.className = `bed-cell bed-${s}`; b.textContent = 'B'+(i+1); b.title = `Bed ${i+1} â€” ${s}`;
     b.onclick = () => showToast(`Bed ${i+1}: ${s}`);
     g.appendChild(b);
   });
 }
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // LANDING PAGE
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function handleCTA(btn) {
   const inputs = btn.parentElement.querySelectorAll('input'); let ok = true;
   inputs.forEach(inp => { if (!inp.value.trim()) { inp.style.borderColor='#F87171'; setTimeout(()=>inp.style.borderColor='',2000); ok=false; } });
-  if (ok) { btn.textContent='Sent ✓'; btn.style.background='#16A34A'; document.getElementById('cta-success').style.display='block'; inputs.forEach(i=>i.value=''); }
+  if (ok) { btn.textContent='Sent âœ“'; btn.style.background='#16A34A'; document.getElementById('cta-success').style.display='block'; inputs.forEach(i=>i.value=''); }
 }
 
 let currentStep = 0;
@@ -723,9 +737,9 @@ function switchTab(type, btn) {
   btn.classList.add('active'); document.getElementById('fw-'+type).classList.add('active');
 }
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // WHATSAPP CHAT
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 const WA_NUMBER = '919876543210';
 let waOpen = false;
 
@@ -745,17 +759,17 @@ function switchWaTab(tab, btn) {
 }
 
 const waReplies = {
-  'book an appointment':    "I can help book an appointment! 📅\nTell me:\n1. Which specialty?\n2. Preferred date?\n3. Your city?",
-  'emergency sos help':     "🚨 For emergencies:\n• Press the **SOS button** in your dashboard\n• Or call **108** immediately\n\nYour location will be shared with nearest hospitals.",
-  'view my health records': "📋 Your health records are in your dashboard.\n\nYou can view prescriptions, lab reports, and share with doctors.",
-  'contact a doctor':       "🩺 Available doctors:\n• Dr. S. Rao — Cardiology ✅\n• Dr. P. Mehta — Ortho ✅\n• Dr. R. Gupta — General ✅\n\nWhich doctor would you like?",
-  'show my health records': "Here are your latest records:\n📄 Lipid Profile — 8 Mar 2026\n🩺 Prescription — 12 Feb\n🧪 CBC Report — 10 Jan",
-  'medication reminders':   "💊 Your current schedule:\n• Ecosprin 75mg — 8:00 AM ✅\n• Metoprolol 25mg — 8:00 PM ⏰\n• Atorvastatin 10mg — 10:00 PM ⏰",
-  'lab reports update':     "🧪 Latest: **Lipid Profile** uploaded by Apollo Hospitals on 8 Mar 2026.\n\nView in your Health Records.",
-  'doctor consultation':    "🩺 Starting consultation...\nAvailable: Dr. Rao (Cardiology), Dr. Mehta (Ortho), Dr. Gupta (General)\nWho would you like to contact?",
-  'blood donor request':    "🩸 Found 3 O+ donors within 5 km of Hyderabad.\nShall I send them an alert?",
-  'ambulance tracking':     "🚑 AMB-02 is 4 minutes away.\nYou'll receive live updates here.",
-  'default':                "Thanks for reaching out! 😊 I'm E-Hospitee's WhatsApp assistant.\n\nI can help with:\n📅 Appointments · 📋 Records\n💊 Medications · 🚨 Emergencies\n\nWhat do you need?"
+  'book an appointment':    "I can help book an appointment! ðŸ“…\nTell me:\n1. Which specialty?\n2. Preferred date?\n3. Your city?",
+  'emergency sos help':     "ðŸš¨ For emergencies:\nâ€¢ Press the **SOS button** in your dashboard\nâ€¢ Or call **108** immediately\n\nYour location will be shared with nearest hospitals.",
+  'view my health records': "ðŸ“‹ Your health records are in your dashboard.\n\nYou can view prescriptions, lab reports, and share with doctors.",
+  'contact a doctor':       "ðŸ©º Available doctors:\nâ€¢ Dr. S. Rao â€” Cardiology âœ…\nâ€¢ Dr. P. Mehta â€” Ortho âœ…\nâ€¢ Dr. R. Gupta â€” General âœ…\n\nWhich doctor would you like?",
+  'show my health records': "Here are your latest records:\nðŸ“„ Lipid Profile â€” 8 Mar 2026\nðŸ©º Prescription â€” 12 Feb\nðŸ§ª CBC Report â€” 10 Jan",
+  'medication reminders':   "ðŸ’Š Your current schedule:\nâ€¢ Ecosprin 75mg â€” 8:00 AM âœ…\nâ€¢ Metoprolol 25mg â€” 8:00 PM â°\nâ€¢ Atorvastatin 10mg â€” 10:00 PM â°",
+  'lab reports update':     "ðŸ§ª Latest: **Lipid Profile** uploaded by Apollo Hospitals on 8 Mar 2026.\n\nView in your Health Records.",
+  'doctor consultation':    "ðŸ©º Starting consultation...\nAvailable: Dr. Rao (Cardiology), Dr. Mehta (Ortho), Dr. Gupta (General)\nWho would you like to contact?",
+  'blood donor request':    "ðŸ©¸ Found 3 O+ donors within 5 km of Hyderabad.\nShall I send them an alert?",
+  'ambulance tracking':     "ðŸš‘ AMB-02 is 4 minutes away.\nYou'll receive live updates here.",
+  'default':                "Thanks for reaching out! ðŸ˜Š I'm E-Hospitee's WhatsApp assistant.\n\nI can help with:\nðŸ“… Appointments Â· ðŸ“‹ Records\nðŸ’Š Medications Â· ðŸš¨ Emergencies\n\nWhat do you need?"
 };
 function getReply(msg) { const key = Object.keys(waReplies).find(k => msg.toLowerCase().includes(k)); return waReplies[key] || waReplies['default']; }
 
@@ -764,7 +778,7 @@ function addMessage(text, type) {
   const now = new Date(), time = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
   const div = document.createElement('div');
   div.className = 'wa-msg wa-msg-'+type;
-  div.innerHTML = text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>') + `<div class="wa-msg-time">${time}${type==='out'?' <span class="wa-tick">✓✓</span>':''}</div>`;
+  div.innerHTML = text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>') + `<div class="wa-msg-time">${time}${type==='out'?' <span class="wa-tick">âœ“âœ“</span>':''}</div>`;
   c.appendChild(div); c.scrollTop = c.scrollHeight;
 }
 function showTyping() { const c=document.getElementById('waMessages'); if(!c)return; const t=document.createElement('div'); t.className='wa-typing'; t.id='waTyping'; t.innerHTML='<span></span><span></span><span></span>'; c.appendChild(t); c.scrollTop=c.scrollHeight; }
@@ -784,7 +798,7 @@ function sendQuickReply(text) {
 function handleWaKey(e) { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendWaMessage(); } }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,80)+'px'; }
 
-const EMOJIS = ['😊','😷','💊','🏥','❤️','👨‍⚕️','🩺','🩸','🚑','😰','🤒','💉','🧬','🩻','🏃','💪','🧘','😌','🙏','✅','⚠️','📋','📅','🔔','📞','💬','👋','🤝'];
+const EMOJIS = ['ðŸ˜Š','ðŸ˜·','ðŸ’Š','ðŸ¥','â¤ï¸','ðŸ‘¨â€âš•ï¸','ðŸ©º','ðŸ©¸','ðŸš‘','ðŸ˜°','ðŸ¤’','ðŸ’‰','ðŸ§¬','ðŸ©»','ðŸƒ','ðŸ’ª','ðŸ§˜','ðŸ˜Œ','ðŸ™','âœ…','âš ï¸','ðŸ“‹','ðŸ“…','ðŸ””','ðŸ“ž','ðŸ’¬','ðŸ‘‹','ðŸ¤'];
 function buildEmojiGrid() {
   const g = document.getElementById('waEmojiGrid'); if (!g || g.children.length) return;
   EMOJIS.forEach(e => { const s=document.createElement('span'); s.textContent=e; s.onclick=()=>{ const i=document.getElementById('waInput'); if(i) i.value+=e; closeEmojiPicker(); i?.focus(); }; g.appendChild(s); });
@@ -794,9 +808,9 @@ function closeEmojiPicker() { document.getElementById('waEmojiPicker')?.classLis
 document.addEventListener('click', closeEmojiPicker);
 function openWhatsApp() { window.open(`https://wa.me/${WA_NUMBER}?text=Hi+E-Hospitee!+I+need+help.`,'_blank'); }
 
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // UTILITIES
-// ══════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function showToast(msg) {
   const t = document.getElementById('toast'); if (!t) return;
   t.textContent = msg; t.classList.add('show');
@@ -834,3 +848,5 @@ function initParallax() {
     document.querySelectorAll('.orb').forEach((o,i) => { o.style.transform=`translateY(${scrollY*(0.08+i*0.04)}px)`; });
   });
 }
+
+

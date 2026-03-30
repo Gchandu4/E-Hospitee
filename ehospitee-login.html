@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -6,31 +6,31 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; frame-ancestors 'none';"/>
 <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
-<title>E-Hospitee — Sign In</title>
+<title>E-Hospitee â€” Sign In</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="styles.css"/>
 </head>
 <body id="page-login">
 
-<!-- ── NAV ── -->
+<!-- â”€â”€ NAV â”€â”€ -->
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">
-      <div class="logo-mark">🏥</div>
+      <div class="logo-mark">ðŸ¥</div>
       <span class="logo-text">E-Hospi<span>tee</span></span>
     </a>
     <ul class="nav-links">
-      <li><a href="index.html">← Back to Home</a></li>
-      <li><a href="register.html" class="nav-btn">Create Account</a></li>
+      <li><a href="index.html">â† Back to Home</a></li>
+      <li><a href="ehospitee-register.html" class="nav-btn">Create Account</a></li>
     </ul>
   </div>
 </nav>
 
-<!-- ── LOGIN FORM ── -->
+<!-- â”€â”€ LOGIN FORM â”€â”€ -->
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="logo-mark" style="width:44px;height:44px;font-size:1.3rem">🏥</div>
+      <div class="logo-mark" style="width:44px;height:44px;font-size:1.3rem">ðŸ¥</div>
       <span class="logo-text" style="font-size:1.7rem">E-Hospi<span>tee</span></span>
     </div>
     <h2 class="auth-title">Welcome back</h2>
@@ -38,8 +38,8 @@
 
     <!-- Role Tabs -->
     <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchLoginTab('patient', this)">👤 Patient</button>
-      <button class="auth-tab" onclick="switchLoginTab('hospital', this)">🏥 Hospital</button>
+      <button class="auth-tab active" onclick="switchLoginTab('patient', this)">ðŸ‘¤ Patient</button>
+      <button class="auth-tab" onclick="switchLoginTab('hospital', this)">ðŸ¥ Hospital</button>
     </div>
 
     <!-- Patient Login -->
@@ -58,7 +58,7 @@
         </label>
         <a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a>
       </div>
-      <button class="form-btn" onclick="handleLogin('patient')">Sign In as Patient →</button>
+      <button class="form-btn" onclick="handleLogin('patient')">Sign In as Patient â†’</button>
     </div>
 
     <!-- Hospital Login -->
@@ -77,26 +77,27 @@
         </label>
         <a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a>
       </div>
-      <button class="form-btn" onclick="handleLogin('hospital')">Sign In as Hospital →</button>
+      <button class="form-btn" onclick="handleLogin('hospital')">Sign In as Hospital â†’</button>
     </div>
 
     <div class="auth-divider">or try a demo</div>
     <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-patient')">
-      🎯 Patient Demo — (rajesh@demo.com / demo123)
+      ðŸŽ¯ Patient Demo â€” (rajesh@demo.com / demo123)
     </button>
     <div style="height:10px"></div>
     <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-hospital')">
-      🏥 Hospital Demo — (admin@apollo.com / demo123)
+      ðŸ¥ Hospital Demo â€” (admin@apollo.com / demo123)
     </button>
 
     <div class="auth-switch">
-      Don't have an account? <a href="register.html">Sign up here</a>
+      Don't have an account? <a href="ehospitee-register.html">Sign up here</a>
     </div>
   </div>
 </div>
 
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js"></script>
+<script src="ehospitee-js.js"></script>
 </body>
 </html>
+
