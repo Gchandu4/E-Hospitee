@@ -1000,7 +1000,6 @@ function addMessage(text, type) {
   const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
   const div  = document.createElement('div');
   div.className = 'wa-msg wa-msg-' + type;
-  // Sanitize user text before rendering — prevents XSS
   const safeText = type === 'out'
     ? Sanitize.html(text).replace(/\n/g, '<br>')
     : text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -1010,23 +1009,7 @@ function addMessage(text, type) {
   container.scrollTop = container.scrollHeight;
 }
 
-function sendWaMessage() {
-  const input = document.getElementById('waInput');
-  const text  = input.value.trim();
-
-  const msgError = Validate.chatMessage(text);
-  if (msgError) { showToast('⚠️ ' + msgError); return; }
-
-  // Abuse: max 30 messages per minute
-  const limit = ActionLimit.check('chat_message', 30, 60 * 1000);
-  if (!limit.allowed) { showToast(`⚠️ Slow down! Wait ${limit.remaining}s.`); return; }
-
-  addMessage(text, 'out');
-  input.value = ''; input.style.height = 'auto';
-  closeEmojiPicker();
-  showTyping();
-  setTimeout(() => { removeTyping(); addMessage(getReply(text), 'in'); }, 900 + Math.random() * 600);
-}
+function showTyping() {
   const container = document.getElementById('waMessages');
   const t = document.createElement('div');
   t.className = 'wa-typing'; t.id = 'waTyping';
@@ -1039,7 +1022,10 @@ function removeTyping() { const t = document.getElementById('waTyping'); if (t) 
 function sendWaMessage() {
   const input = document.getElementById('waInput');
   const text  = input.value.trim();
-  if (!text) return;
+  const msgError = Validate.chatMessage(text);
+  if (msgError) { showToast('⚠️ ' + msgError); return; }
+  const limit = ActionLimit.check('chat_message', 30, 60 * 1000);
+  if (!limit.allowed) { showToast(`⚠️ Slow down! Wait ${limit.remaining}s.`); return; }
   addMessage(text, 'out');
   input.value = ''; input.style.height = 'auto';
   closeEmojiPicker();
@@ -1059,24 +1045,6 @@ function sendQuickReply(text) {
 
 function handleWaKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWaMessage(); } }
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 80) + 'px'; }
-
-const EMOJIS = ['😊','😷','💊','🏥','❤️','👨‍⚕️','🩺','🩸','🚑','😰','🤒','💉','🧬','🩻','🏃','💪','🧘','😌','🙏','✅','⚠️','📋','📅','🔔','📞','💬','👋','🤝'];
-
-function buildEmojiGrid() {
-  const g = document.getElementById('waEmojiGrid');
-  EMOJIS.forEach(e => {
-    const s = document.createElement('span');
-    s.textContent = e;
-    s.onclick = () => {
-      document.getElementById('waInput').value += e;
-      closeEmojiPicker();
-      document.getElementById('waInput').focus();
-    };
-    g.appendChild(s);
-  });
-}
-
-function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('waEmojiPicker').classList.toggle('open'); }
 function closeEmojiPicker()    { document.getElementById('waEmojiPicker').classList.remove('open'); }
 document.addEventListener('click', closeEmojiPicker);
 
