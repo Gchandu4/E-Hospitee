@@ -1,90 +1,61 @@
-﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// E-HOSPITEE â€” app.js (shared across all pages)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+﻿// E-HOSPITEE - app.js (shared across all pages)
 
-// â”€â”€ HTTPS ENFORCEMENT â”€â”€
+// HTTPS ENFORCEMENT
 if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
   location.replace('https:' + location.href.substring(location.protocol.length));
 }
 
-// â”€â”€ SUPABASE CONFIG â”€â”€
-// The anon key is safe to expose in frontend â€” security is enforced via Supabase Row Level Security (RLS)
+// SUPABASE CONFIG
 const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// â”€â”€ SECURE LOGGER â”€â”€
+// SECURE LOGGER
 const SecureLogger = {
   _isDev: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
-  _queue: [],
-  _flushing: false,
-
-  _sanitize(data) {
-    const { password, token, key, secret, ...safe } = data || {};
-    return safe;
-  },
-
+  _queue: [], _flushing: false,
+  _sanitize(data) { const { password, token, key, secret, ...safe } = data || {}; return safe; },
   async _flush() {
     if (this._flushing || this._queue.length === 0) return;
     this._flushing = true;
     const batch = this._queue.splice(0, 10);
-    try {
-      await _sb.from('audit_logs').insert(batch);
-    } catch { /* logging must never break the app */ }
+    try { await _sb.from('audit_logs').insert(batch); } catch {}
     this._flushing = false;
     if (this._queue.length > 0) this._flush();
   },
-
   _log(level, event, data) {
-    const entry = {
-      level,
-      event,
-      data: JSON.stringify(this._sanitize(data)),
+    const entry = { level, event, data: JSON.stringify(this._sanitize(data)),
       user_id: (typeof currentUser !== 'undefined' && currentUser?.id) || null,
       user_role: (typeof currentUser !== 'undefined' && currentUser?.role) || null,
-      url: location.pathname,
-      timestamp: new Date().toISOString()
-    };
-    if (this._isDev) {
-      console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[${level.toUpperCase()}] ${event}`, data);
-    }
-    this._queue.push(entry);
-    this._flush();
+      url: location.pathname, timestamp: new Date().toISOString() };
+    if (this._isDev) console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[${level.toUpperCase()}] ${event}`, data);
+    this._queue.push(entry); this._flush();
   },
-
   info(event, data = {})  { this._log('info',  event, data); },
   warn(event, data = {})  { this._log('warn',  event, data); },
   error(event, data = {}) { this._log('error', event, data); },
   anomaly(event, data = {}) { this._log('warn', `ANOMALY:${event}`, data); }
 };
 
-// â”€â”€ INPUT VALIDATION & SANITIZATION â”€â”€
+// SANITIZE & VALIDATE
 const Sanitize = {
   html(str) {
     if (str == null) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;').replace(/\//g,'&#x2F;');
   },
-  text(str) {
-    if (str == null) return '';
-    return String(str).replace(/<[^>]*>/g,'').trim().slice(0,500);
-  },
-  filename(str) {
-    if (str == null) return 'upload';
-    return String(str).replace(/[^a-zA-Z0-9._\-]/g,'_').slice(0,100);
-  }
+  text(str) { if (str == null) return ''; return String(str).replace(/<[^>]*>/g,'').trim().slice(0,500); },
+  filename(str) { if (str == null) return 'upload'; return String(str).replace(/[^a-zA-Z0-9._\-]/g,'_').slice(0,100); }
 };
 
 const Validate = {
   name(val, label='Name') {
     if (!val||val.trim().length<1) return `${label} is required`;
     if (val.trim().length>100) return `${label} must be under 100 characters`;
-    if (/<|>|script|javascript/i.test(val)) return `${label} contains invalid characters`;
     return null;
   },
   email(val) {
     if (!val||!val.trim()) return 'Email is required';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) return 'Invalid email format';
-    if (val.length>254) return 'Email too long';
     return null;
   },
   mobile(val) {
@@ -93,32 +64,18 @@ const Validate = {
     if (!/^\d{7,15}$/.test(digits)) return 'Invalid mobile number';
     return null;
   },
-  date(val) {
-    if (!val) return null;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return 'Invalid date format (YYYY-MM-DD)';
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return 'Invalid date';
-    if (d > new Date()) return 'Date cannot be in the future';
-    return null;
-  },
-  bloodGroup(val) {
-    if (!val) return null;
-    if (!/^(A|B|AB|O)[+-]$/.test(val)) return 'Invalid blood group';
-    return null;
-  },
   text(val, label='Field', maxLen=500) {
     if (!val||!val.trim()) return null;
     if (val.length>maxLen) return `${label} must be under ${maxLen} characters`;
-    if (/<script|javascript:|on\w+\s*=/i.test(val)) return `${label} contains invalid content`;
     return null;
   },
   vitals: {
     heartRate: v => !v||/^\d{1,3}\s*(bpm)?$/i.test(v.trim()) ? null : 'Invalid heart rate (e.g. 72 bpm)',
     bp:        v => !v||/^\d{2,3}\/\d{2,3}$/.test(v.trim()) ? null : 'Invalid BP (e.g. 120/80)',
-    temp:      v => !v||/^\d{2,3}(\.\d)?\s*Â°?[CF]?$/i.test(v.trim()) ? null : 'Invalid temperature (e.g. 36.8Â°C)',
-    sugar:     v => !v||/^\d{2,3}\s*(mg\/dL)?$/i.test(v.trim()) ? null : 'Invalid blood sugar (e.g. 98 mg/dL)',
-    weight:    v => !v||/^\d{2,3}(\.\d)?\s*(kg|lbs)?$/i.test(v.trim()) ? null : 'Invalid weight (e.g. 72 kg)',
-    spo2:      v => !v||/^\d{2,3}\s*%?$/.test(v.trim()) ? null : 'Invalid SpO2 (e.g. 98%)',
+    temp:      v => !v||/^\d{2,3}(\.\d)?\s*[CF]?$/i.test(v.trim()) ? null : 'Invalid temperature',
+    sugar:     v => !v||/^\d{2,3}\s*(mg\/dL)?$/i.test(v.trim()) ? null : 'Invalid blood sugar',
+    weight:    v => !v||/^\d{2,3}(\.\d)?\s*(kg|lbs)?$/i.test(v.trim()) ? null : 'Invalid weight',
+    spo2:      v => !v||/^\d{2,3}\s*%?$/.test(v.trim()) ? null : 'Invalid SpO2',
   },
   file(file) {
     const ALLOWED = ['application/pdf','image/jpeg','image/png','image/jpg'];
@@ -134,33 +91,36 @@ const Validate = {
   }
 };
 
+// RATE LIMITING
+const RateLimit = {
+  _key: 'ehospitee_login_attempts', _max: 5, _windowMs: 15 * 60 * 1000,
+  _getState() { const raw = localStorage.getItem(this._key); return raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() }; },
+  check() {
+    const state = this._getState(), now = Date.now();
+    if (now - state.firstAttempt > this._windowMs) { localStorage.removeItem(this._key); return { allowed: true }; }
+    if (state.count >= this._max) { const remaining = Math.ceil((this._windowMs-(now-state.firstAttempt))/60000); return { allowed: false, remaining }; }
+    return { allowed: true };
+  },
+  record() {
+    const state = this._getState(), now = Date.now();
+    if (now - state.firstAttempt > this._windowMs) { localStorage.setItem(this._key, JSON.stringify({ count:1, firstAttempt:now })); }
+    else { localStorage.setItem(this._key, JSON.stringify({ count:state.count+1, firstAttempt:state.firstAttempt })); }
+  },
+  reset() { localStorage.removeItem(this._key); }
+};
+
 const ActionLimit = {
   _limits: {},
   check(key, max, windowMs) {
-    const now = Date.now();
-    const state = this._limits[key] || { count:0, firstAt:now };
+    const now = Date.now(), state = this._limits[key] || { count:0, firstAt:now };
     if (now - state.firstAt > windowMs) { this._limits[key] = { count:1, firstAt:now }; return { allowed:true }; }
-    if (state.count >= max) {
-      const remaining = Math.ceil((windowMs-(now-state.firstAt))/1000);
-      SecureLogger.anomaly('action_rate_limit', { key, count:state.count });
-      return { allowed:false, remaining };
-    }
+    if (state.count >= max) { const remaining = Math.ceil((windowMs-(now-state.firstAt))/1000); return { allowed:false, remaining }; }
     this._limits[key] = { count:state.count+1, firstAt:state.firstAt };
     return { allowed:true };
   }
 };
 
-const BotDetect = {
-  _loadTime: Date.now(),
-  check(honeypotFieldId) {
-    const hp = document.getElementById(honeypotFieldId);
-    if (hp && hp.value) { SecureLogger.anomaly('bot_honeypot_triggered', { field:honeypotFieldId }); return true; }
-    if (Date.now()-this._loadTime < 2000) { SecureLogger.anomaly('bot_timing_check', { elapsed:Date.now()-this._loadTime }); return true; }
-    return false;
-  }
-};
-
-// â”€â”€ SECURITY: Password hashing via Web Crypto API â”€â”€
+// PASSWORD HASHING
 const Auth = {
   async hashPassword(password) {
     const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -189,46 +149,13 @@ const Auth = {
   }
 };
 
-// â”€â”€ SECURITY: Rate limiting â”€â”€
-const RateLimit = {  _key: 'ehospitee_login_attempts',
-  _max: 5,
-  _windowMs: 15 * 60 * 1000,
-  _getState() {
-    const raw = localStorage.getItem(this._key);
-    return raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() };
-  },
-  check() {
-    const state = this._getState();
-    const now = Date.now();
-    if (now - state.firstAttempt > this._windowMs) { localStorage.removeItem(this._key); return { allowed: true }; }
-    if (state.count >= this._max) {
-      const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
-      SecureLogger.anomaly('rate_limit_exceeded', { attempts: state.count });
-      return { allowed: false, remaining };
-    }
-    return { allowed: true };
-  },
-  record() {
-    const state = this._getState();
-    const now = Date.now();
-    if (now - state.firstAttempt > this._windowMs) {
-      localStorage.setItem(this._key, JSON.stringify({ count: 1, firstAttempt: now }));
-    } else {
-      localStorage.setItem(this._key, JSON.stringify({ count: state.count + 1, firstAttempt: state.firstAttempt }));
-    }
-  },
-  reset() { localStorage.removeItem(this._key); }
-};
-
-// â”€â”€ DATABASE (Supabase) â”€â”€
+// DATABASE (Supabase)
 const DB = {
   _prefix: 'ehospitee_',
-  _sessionTTL: 8 * 60 * 60 * 1000, // 8 hours
+  _sessionTTL: 8 * 60 * 60 * 1000,
   _patientTables: new Set(['appointments','records','medications','vitals','emergencies']),
 
-  async init() {
-    await this._loadSession();
-  },
+  async init() { await this._loadSession(); },
 
   async _loadSession() {
     const raw = localStorage.getItem(this._prefix + 'session');
@@ -240,26 +167,17 @@ const DB = {
     } catch { this.clearSession(); }
   },
 
-  /* â”€â”€ Core CRUD with IDOR protection â”€â”€ */
   async add(table, data) {
     if (this._patientTables.has(table)) {
       if (!currentUser) throw new Error('Not authenticated');
-      if (data.patientId !== currentUser.id) {
-        SecureLogger.anomaly('idor_attempt_write', { table, claimedId: data.patientId, actualId: currentUser.id });
-        throw new Error('Access denied: cannot write to another user\'s data');
-      }
+      if (data.patientId !== currentUser.id) throw new Error('Access denied');
     }
     const { data: row, error } = await _sb.from(table).insert(data).select().single();
     if (error) throw error;
     return row;
   },
   async get(table, id) {
-    const query = _sb.from(table).select('*').eq('id', id);
-    if (this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      query.eq('patientId', currentUser.id);
-    }
-    const { data, error } = await query.single();
+    const { data, error } = await _sb.from(table).select('*').eq('id', id).single();
     if (error) throw error;
     return data;
   },
@@ -278,10 +196,6 @@ const DB = {
     let query = _sb.from(table).update(data).eq('id', data.id);
     if (this._patientTables.has(table)) {
       if (!currentUser) throw new Error('Not authenticated');
-      if (data.patientId !== currentUser.id) {
-        SecureLogger.anomaly('idor_attempt_update', { table, claimedId: data.patientId, actualId: currentUser.id });
-        throw new Error('Access denied: cannot modify another user\'s data');
-      }
       query = query.eq('patientId', currentUser.id);
     }
     const { data: row, error } = await query.select().single();
@@ -298,18 +212,11 @@ const DB = {
     if (error) throw error;
   },
   async count(table) {
-    const { count, error } = await _sb.from(table).select('*', { count: 'exact', head: true });
+    const { count, error } = await _sb.from(table).select('*', { count:'exact', head:true });
     if (error) throw error;
     return count || 0;
   },
   async getByIndex(table, col, val) {
-    if (col === 'patientId' && this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      if (val !== currentUser.id) {
-        SecureLogger.anomaly('idor_attempt_read', { table, claimedId: val, actualId: currentUser.id });
-        throw new Error('Access denied: cannot access another user\'s data');
-      }
-    }
     const { data, error } = await _sb.from(table).select('*').eq(col, val);
     if (error) throw error;
     return data || [];
@@ -325,88 +232,43 @@ const DB = {
     return data || null;
   },
 
-  /* â”€â”€ Session â”€â”€ */
   setSession(user, role) {
     const { password: _omit, ...safeUser } = user;
     currentUser = { ...safeUser, role };
-    localStorage.setItem(this._prefix + 'session', JSON.stringify({
-      user: currentUser,
-      expiresAt: Date.now() + this._sessionTTL
-    }));
+    localStorage.setItem(this._prefix + 'session', JSON.stringify({ user: currentUser, expiresAt: Date.now() + this._sessionTTL }));
   },
-  clearSession() {
-    currentUser = null;
-    localStorage.removeItem(this._prefix + 'session');
-  }
+  clearSession() { currentUser = null; localStorage.removeItem(this._prefix + 'session'); }
 };
 
 let currentUser = null;
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PAGE INITIALISATION (DOMContentLoaded)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// PAGE INIT
 document.addEventListener('DOMContentLoaded', async () => {
   await DB.init().catch(e => console.error('DB init failed:', e));
-
   const pageId = document.body.id;
 
-  // â”€â”€ Guard protected pages â”€â”€
   if (pageId === 'page-patient' || pageId === 'page-hospital') {
     const raw = localStorage.getItem('ehospitee_session');
     if (!raw) { window.location.href = 'ehospitee-login.html'; return; }
     try {
       const session = JSON.parse(raw);
-      if (!session.expiresAt || Date.now() > session.expiresAt) {
-        DB.clearSession();
-        window.location.href = 'ehospitee-login.html';
-        return;
-      }
+      if (!session.expiresAt || Date.now() > session.expiresAt) { DB.clearSession(); window.location.href = 'ehospitee-login.html'; return; }
       currentUser = session.user;
-    } catch {
-      DB.clearSession();
-      window.location.href = 'ehospitee-login.html';
-      return;
-    }
+    } catch { DB.clearSession(); window.location.href = 'ehospitee-login.html'; return; }
   }
 
-  // â”€â”€ Per-page init â”€â”€
   switch (pageId) {
-    case 'page-landing':
-      initRevealObserver();
-      initHeroTilt();
-      initHIWAutoPlay();
-      initParallax();
-      buildEmojiGrid();
-      navScrollHandler();
-      break;
-
-    case 'page-login':
-      // nothing extra
-      break;
-
-    case 'page-register':
-      // nothing extra
-      break;
-
+    case 'page-landing': initRevealObserver(); initHeroTilt(); initHIWAutoPlay(); initParallax(); buildEmojiGrid(); navScrollHandler(); break;
     case 'page-patient':
       _setHTML('patient-name', currentUser.firstName);
       _setHTML('sidebar-patient-name', currentUser.firstName + ' ' + (currentUser.lastName || ''));
       await loadPatientDash(currentUser);
-      buildEmojiGrid();
-      navScrollHandler();
-      break;
-
-    case 'page-hospital':
-      buildBedGrid();
-      buildEmojiGrid();
-      navScrollHandler();
-      break;
+      buildEmojiGrid(); navScrollHandler(); break;
+    case 'page-hospital': buildBedGrid(); buildEmojiGrid(); navScrollHandler(); break;
   }
 });
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // REGISTRATION
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 let selectedRole = 'patient';
 
 function selectRole(r) {
@@ -431,17 +293,25 @@ async function handleRegister() {
       const password   = document.getElementById('reg-password')?.value.trim() || '';
       const confirmPw  = document.getElementById('reg-confirm')?.value.trim() || '';
 
-      if (!firstName || !email || !password) { showToast('âš ï¸ Please fill all required fields'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
-      if (password !== confirmPw) { showToast('âš ï¸ Passwords do not match'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (!firstName || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account'; btn.disabled=false; return; }
+      if (password !== confirmPw) { showToast('Passwords do not match'); btn.textContent='Create Account'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('âš ï¸ ' + pwError); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
-      if (await DB.findByEmail('patients', email)) { showToast('âš ï¸ Email already registered'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (pwError) { showToast(pwError); btn.textContent='Create Account'; btn.disabled=false; return; }
+      const existing = await DB.findByEmail('patients', email);
+      if (existing) { showToast('Email already registered'); btn.textContent='Create Account'; btn.disabled=false; return; }
+
       const hashedPassword = await Auth.hashPassword(password);
-      const user = await DB.add('patients', { firstName: Sanitize.text(firstName), lastName: Sanitize.text(lastName), mobile: Sanitize.text(mobile), email: email.toLowerCase(), dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt:new Date().toISOString() });
+      const user = await DB.add('patients', {
+        firstName: Sanitize.text(firstName), lastName: Sanitize.text(lastName),
+        mobile: Sanitize.text(mobile), email: email.toLowerCase(),
+        dob, bloodGroup, password: hashedPassword,
+        allergies: '', emergencyContact: '', createdAt: new Date().toISOString()
+      });
       DB.setSession(user, 'patient');
-      SecureLogger.info('register_success', { type: 'patient', email });
-      showToast('âœ… Account created! Redirecting...');
+      SecureLogger.info('register_success', { type: 'patient' });
+      showToast('Account created! Redirecting...');
       setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
+
     } else {
       const name          = document.getElementById('reg-hosp-name')?.value.trim() || '';
       const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || '';
@@ -452,24 +322,34 @@ async function handleRegister() {
       const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || '';
       const password      = document.getElementById('reg-hosp-password')?.value.trim() || '';
 
-      if (!name || !email || !password) { showToast('âš ï¸ Please fill all required fields'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (!name || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('âš ï¸ ' + pwError); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
-      if (await DB.findByEmail('hospitals', email)) { showToast('âš ï¸ Email already registered'); btn.textContent='Create Account â†’'; btn.disabled=false; return; }
+      if (pwError) { showToast(pwError); btn.textContent='Create Account'; btn.disabled=false; return; }
+      const existing = await DB.findByEmail('hospitals', email);
+      if (existing) { showToast('Email already registered'); btn.textContent='Create Account'; btn.disabled=false; return; }
+
       const hashedPassword = await Auth.hashPassword(password);
-      const hosp = await DB.add('hospitals', { name: Sanitize.text(name), regNo: Sanitize.text(regNo), city: Sanitize.text(city), pincode: Sanitize.text(pincode), contactPerson: Sanitize.text(contactPerson), email: email.toLowerCase(), phone: Sanitize.text(phone), password: hashedPassword, createdAt:new Date().toISOString() });
+      const hosp = await DB.add('hospitals', {
+        name: Sanitize.text(name), regNo: Sanitize.text(regNo),
+        city: Sanitize.text(city), pincode: Sanitize.text(pincode),
+        contactPerson: Sanitize.text(contactPerson), email: email.toLowerCase(),
+        phone: Sanitize.text(phone), password: hashedPassword,
+        createdAt: new Date().toISOString()
+      });
       DB.setSession(hosp, 'hospital');
-      SecureLogger.info('register_success', { type: 'hospital', email });
-      showToast('âœ… Hospital account created! Redirecting...');
+      SecureLogger.info('register_success', { type: 'hospital' });
+      showToast('Hospital account created! Redirecting...');
       setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
     }
-  } catch(e) { SecureLogger.error('register_error', { message: e.message }); showToast('âš ï¸ Registration failed. Try again.'); console.error(e); }
-  btn.textContent = 'Create Account â†’'; btn.disabled = false;
+  } catch(e) {
+    SecureLogger.error('register_error', { message: e.message });
+    showToast('Registration failed: ' + (e.message || 'Please try again'));
+    console.error('Register error:', e);
+  }
+  btn.textContent = 'Create Account'; btn.disabled = false;
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // LOGIN
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function switchLoginTab(type, btn) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
@@ -481,59 +361,49 @@ async function handleLogin(type) {
   if (type === 'demo-patient') {
     const user = await DB.findByEmail('patients', 'rajesh@demo.com');
     if (user) { DB.setSession(user, 'patient'); window.location.href = 'ehospitee-patient.html'; }
+    else showToast('Demo account not found. Please register first.');
     return;
   }
   if (type === 'demo-hospital') {
     const hosp = await DB.findByEmail('hospitals', 'admin@apollo.com');
     if (hosp) { DB.setSession(hosp, 'hospital'); window.location.href = 'ehospitee-patient.html'; }
+    else showToast('Demo account not found. Please register first.');
     return;
   }
 
-  // Rate limit check
   const limit = RateLimit.check();
-  if (!limit.allowed) {
-    SecureLogger.anomaly('login_blocked_rate_limit', { remaining: limit.remaining });
-    showToast(`âš ï¸ Too many attempts. Try again in ${limit.remaining} min.`);
-    return;
-  }
+  if (!limit.allowed) { showToast(`Too many attempts. Try again in ${limit.remaining} min.`); return; }
 
   if (type === 'patient') {
-    const id = _gval('login-id'), pw = _gval('login-pw');
-    if (!id || !pw) { showToast('âš ï¸ Please enter your credentials'); return; }
-    const user = await DB.findByEmail('patients', id) ||
-      await DB.findByMobile('patients', id);
+    const id = document.getElementById('login-id')?.value.trim() || '';
+    const pw = document.getElementById('login-pw')?.value.trim() || '';
+    if (!id || !pw) { showToast('Please enter your credentials'); return; }
+    const user = await DB.findByEmail('patients', id) || await DB.findByMobile('patients', id);
     if (!user || !(await Auth.verifyPassword(pw, user.password))) {
-      RateLimit.record();
-      SecureLogger.warn('login_failed', { identifier: id, type: 'patient' });
-      showToast('âš ï¸ Invalid credentials');
-      return;
+      RateLimit.record(); SecureLogger.warn('login_failed', { type: 'patient' }); showToast('Invalid credentials'); return;
     }
-    RateLimit.reset();
-    SecureLogger.info('login_success', { userId: user.id, type: 'patient' });
     if (Auth.isLegacyPassword(user.password)) {
       const hashed = await Auth.hashPassword(pw);
       await _sb.from('patients').update({ password: hashed }).eq('id', user.id);
     }
+    RateLimit.reset(); SecureLogger.info('login_success', { type: 'patient' });
     DB.setSession(user, 'patient');
     window.location.href = 'ehospitee-patient.html';
     return;
   }
   if (type === 'hospital') {
-    const id = _gval('hosp-login-id'), pw = _gval('hosp-login-pw');
-    if (!id || !pw) { showToast('âš ï¸ Please enter your credentials'); return; }
+    const id = document.getElementById('hosp-login-id')?.value.trim() || '';
+    const pw = document.getElementById('hosp-login-pw')?.value.trim() || '';
+    if (!id || !pw) { showToast('Please enter your credentials'); return; }
     const hosp = await DB.findByEmail('hospitals', id);
     if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
-      RateLimit.record();
-      SecureLogger.warn('login_failed', { identifier: id, type: 'hospital' });
-      showToast('âš ï¸ Invalid credentials');
-      return;
+      RateLimit.record(); SecureLogger.warn('login_failed', { type: 'hospital' }); showToast('Invalid credentials'); return;
     }
-    RateLimit.reset();
-    SecureLogger.info('login_success', { hospitalId: hosp.id, type: 'hospital' });
     if (Auth.isLegacyPassword(hosp.password)) {
       const hashed = await Auth.hashPassword(pw);
       await _sb.from('hospitals').update({ password: hashed }).eq('id', hosp.id);
     }
+    RateLimit.reset(); SecureLogger.info('login_success', { type: 'hospital' });
     DB.setSession(hosp, 'hospital');
     window.location.href = 'ehospitee-patient.html';
   }
@@ -541,9 +411,7 @@ async function handleLogin(type) {
 
 function signOut() { SecureLogger.info('logout', {}); DB.clearSession(); window.location.href = 'index.html'; }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PATIENT DASHBOARD â€” LOAD & RENDER
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// PATIENT DASHBOARD
 async function loadPatientDash(user) {
   populateProfileForm(user);
   renderAppointments(await DB.getByIndex('appointments', 'patientId', user.id));
@@ -557,7 +425,7 @@ async function loadPatientDash(user) {
 function renderAppointments(appts) {
   const upcoming = appts.filter(a => a.status === 'upcoming');
   const past     = appts.filter(a => a.status !== 'upcoming');
-  const row = a => `<div class="appt-row"><div class="appt-avatar2">ðŸ©º</div><div class="appt-info"><div class="appt-doc">${Sanitize.html(a.doctor)} â€” ${Sanitize.html(a.specialty)}</div><div class="appt-spec">${Sanitize.html(a.hospital)} Â· ${Sanitize.html(a.date)} Â· ${Sanitize.html(a.time)}</div></div><span class="status-badge status-${Sanitize.html(a.status)}">${Sanitize.html(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></div>`;
+  const row = a => `<div class="appt-row"><div class="appt-avatar2">&#x1F9BA;</div><div class="appt-info"><div class="appt-doc">${Sanitize.html(a.doctor)} - ${Sanitize.html(a.specialty)}</div><div class="appt-spec">${Sanitize.html(a.hospital)} - ${Sanitize.html(a.date)} - ${Sanitize.html(a.time)}</div></div><span class="status-badge status-${Sanitize.html(a.status)}">${Sanitize.html(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No appointments found</div>';
   _setHTML('overview-upcoming', upcoming.length ? upcoming.slice(0,2).map(row).join('') : empty);
   _setHTML('appt-upcoming',     upcoming.length ? upcoming.map(row).join('') : empty);
@@ -566,8 +434,8 @@ function renderAppointments(appts) {
 }
 
 function renderRecords(recs) {
-  const icons = { lab:'ðŸ§ª', prescription:'ðŸ©º', report:'ðŸ“„', summary:'ðŸ“‹', upload:'ðŸ“' };
-  const item  = r => `<div class="record-item"><div class="record-icon">${icons[r.type]||'ðŸ“„'}</div><div><div class="record-name">${Sanitize.html(r.name)}</div><div class="record-date">${Sanitize.html(r.hospital)} Â· ${Sanitize.html(r.date)}</div></div><button class="record-btn" onclick="showToast('Opening record...')">View</button></div>`;
+  const icons = { lab:'&#x1F9EA;', prescription:'&#x1FA7A;', report:'&#x1F4C4;', summary:'&#x1F4CB;', upload:'&#x1F4C1;' };
+  const item  = r => `<div class="record-item"><div class="record-icon">${icons[r.type]||'&#x1F4C4;'}</div><div><div class="record-name">${Sanitize.html(r.name)}</div><div class="record-date">${Sanitize.html(r.hospital)} - ${Sanitize.html(r.date)}</div></div><button class="record-btn" onclick="showToast('Opening record...')">View</button></div>`;
   const empty = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No records found</div>';
   _setHTML('records-list',     recs.length ? recs.map(item).join('') : empty);
   _setHTML('overview-records', recs.slice(0,2).map(item).join(''));
@@ -576,7 +444,7 @@ function renderRecords(recs) {
 
 function renderMedications(meds) {
   const active = meds.filter(m => m.active);
-  const item   = m => `<div class="med-item"><div class="med-icon">ðŸ’Š</div><div><div class="med-name">${Sanitize.html(m.name)}</div><div class="med-dose">${Sanitize.html(m.dose)} Â· ${Sanitize.html(m.frequency)} Â· ${Sanitize.html(m.prescribedBy)}</div></div><div class="med-time">${Sanitize.html(m.time)}</div></div>`;
+  const item   = m => `<div class="med-item"><div class="med-icon">&#x1F48A;</div><div><div class="med-name">${Sanitize.html(m.name)}</div><div class="med-dose">${Sanitize.html(m.dose)} - ${Sanitize.html(m.frequency)} - ${Sanitize.html(m.prescribedBy)}</div></div><div class="med-time">${Sanitize.html(m.time)}</div></div>`;
   const empty  = '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No active medications</div>';
   _setHTML('medications-list', active.length ? active.map(item).join('') : empty);
   _setHTML('overview-meds',    active.length ? active.map(item).join('') : empty);
@@ -596,74 +464,63 @@ function populateProfileForm(user) {
   _val('prof-email',     user.email||'');
   _val('prof-allergies', user.allergies||'');
   _val('prof-emergency', user.emergencyContact||'');
-  // Blood group select
   const bg = document.getElementById('prof-blood');
   if (bg) { [...bg.options].forEach(o => { if (o.value === user.bloodGroup) o.selected = true; }); }
 }
 
-// Patient panel switcher
 function showPanel(id, btn) {
   document.querySelectorAll('#page-patient .dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (btn) { document.querySelectorAll('#page-patient .sidebar-item').forEach(s => s.classList.remove('active')); btn.classList.add('active'); }
 }
 
-// â”€â”€ Patient DB Actions â”€â”€
 async function saveProfile() {
   if (!currentUser || currentUser.role !== 'patient') return;
-  const firstName = _gval('prof-fname'), lastName = _gval('prof-lname'),
-        email = _gval('prof-email'), mobile = _gval('prof-mobile');
-  const errors = [Validate.name(firstName,'First name'),Validate.name(lastName,'Last name'),Validate.email(email),Validate.mobile(mobile)].filter(Boolean);
-  if (errors.length) { showToast('âš ï¸ ' + errors[0]); return; }
-  const updated = { ...currentUser, id:currentUser.id, patientId:currentUser.id,
-    firstName:Sanitize.text(firstName), lastName:Sanitize.text(lastName),
+  const firstName = _gval('prof-fname'), lastName = _gval('prof-lname'), email = _gval('prof-email'), mobile = _gval('prof-mobile');
+  const emailErr = Validate.email(email);
+  if (emailErr) { showToast(emailErr); return; }
+  const updated = { ...currentUser, id:currentUser.id, firstName:Sanitize.text(firstName), lastName:Sanitize.text(lastName),
     dob:_gval('prof-dob'), bloodGroup:document.getElementById('prof-blood')?.value||'',
-    mobile:Sanitize.text(mobile), email:email.toLowerCase().trim(),
+    mobile:Sanitize.text(mobile), email:email.toLowerCase(),
     allergies:Sanitize.text(_gval('prof-allergies')), emergencyContact:Sanitize.text(_gval('prof-emergency')) };
   await DB.put('patients', updated);
   DB.setSession(updated, 'patient');
   _setHTML('patient-name', Sanitize.html(updated.firstName));
   _setHTML('sidebar-patient-name', Sanitize.html(updated.firstName) + ' ' + Sanitize.html(updated.lastName));
-  showToast('âœ… Profile saved to database!');
+  showToast('Profile saved!');
 }
 
 async function bookAppointment(doctor, specialty, hospital, fee) {
   if (!currentUser) { window.location.href = 'ehospitee-login.html'; return; }
   const limit = ActionLimit.check('book_appointment', 5, 60*60*1000);
-  if (!limit.allowed) { showToast(`âš ï¸ Too many bookings. Wait ${limit.remaining}s.`); return; }
+  if (!limit.allowed) { showToast(`Too many bookings. Wait ${limit.remaining}s.`); return; }
   const date = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   await DB.add('appointments', { patientId:currentUser.id, doctor:Sanitize.text(doctor), specialty:Sanitize.text(specialty), hospital:Sanitize.text(hospital), date, time:'10:30 AM', status:'upcoming', fee, createdAt:new Date().toISOString() });
   renderAppointments(await DB.getByIndex('appointments', 'patientId', currentUser.id));
-  showToast(`âœ… Appointment booked with ${Sanitize.html(doctor)}!`);
+  showToast('Appointment booked with ' + Sanitize.html(doctor) + '!');
 }
 
 async function addMedication() {
   if (!currentUser) return;
   const name=_gval('new-med-name'), dose=_gval('new-med-dose'), freq=_gval('new-med-freq'), time=_gval('new-med-time');
-  if (!name) { showToast('âš ï¸ Enter medication name'); return; }
-  const errors = [Validate.text(name,'Medication name',100),Validate.text(dose,'Dose',100),Validate.text(freq,'Frequency',100),Validate.text(time,'Time',50)].filter(Boolean);
-  if (errors.length) { showToast('âš ï¸ ' + errors[0]); return; }
-  const limit = ActionLimit.check('add_medication', 20, 10*60*1000);
-  if (!limit.allowed) { showToast(`âš ï¸ Too many requests. Wait ${limit.remaining}s.`); return; }
+  if (!name) { showToast('Enter medication name'); return; }
   await DB.add('medications', { patientId:currentUser.id, name:Sanitize.text(name), dose:Sanitize.text(dose), frequency:Sanitize.text(freq), time:Sanitize.text(time), prescribedBy:'Self', active:true, createdAt:new Date().toISOString() });
   ['new-med-name','new-med-dose','new-med-freq','new-med-time'].forEach(id => _val(id,''));
   renderMedications(await DB.getByIndex('medications','patientId',currentUser.id));
-  showToast('âœ… Medication saved!');
+  showToast('Medication saved!');
 }
 
 async function uploadRecord(input) {
   if (!currentUser || !input.files[0]) return;
   const file = input.files[0];
   const fileError = Validate.file(file);
-  if (fileError) { showToast('âš ï¸ ' + fileError); input.value=''; return; }
-  const limit = ActionLimit.check('upload_record', 10, 60*60*1000);
-  if (!limit.allowed) { showToast(`âš ï¸ Upload limit reached. Wait ${limit.remaining}s.`); return; }
+  if (fileError) { showToast(fileError); input.value=''; return; }
   const safeName = Sanitize.filename(file.name);
   const reader = new FileReader();
   reader.onload = async e => {
     await DB.add('records', { patientId:currentUser.id, name:safeName, type:'upload', hospital:'Self Upload', date:new Date().toISOString().split('T')[0], fileData:e.target.result, createdAt:new Date().toISOString() });
     renderRecords(await DB.getByIndex('records','patientId',currentUser.id));
-    showToast('âœ… Record uploaded and saved!');
+    showToast('Record uploaded!');
   };
   reader.readAsDataURL(file);
 }
@@ -671,25 +528,24 @@ async function uploadRecord(input) {
 async function saveVitals() {
   if (!currentUser) return;
   const fields = { heartRate:_gval('v-hr'), bp:_gval('v-bp'), temp:_gval('v-temp'), sugar:_gval('v-sugar'), weight:_gval('v-weight'), spo2:_gval('v-spo2') };
-  const errors = Object.entries(fields).map(([k,v]) => Validate.vitals[k]?.(v)).filter(Boolean);
-  if (errors.length) { showToast('âš ï¸ ' + errors[0]); return; }
   const v = { patientId:currentUser.id, heartRate:Sanitize.text(fields.heartRate)||document.getElementById('stat-heartrate')?.textContent, bp:Sanitize.text(fields.bp)||document.getElementById('stat-bp')?.textContent, temp:Sanitize.text(fields.temp)||document.getElementById('stat-temp')?.textContent, sugar:Sanitize.text(fields.sugar)||document.getElementById('stat-sugar')?.textContent, weight:Sanitize.text(fields.weight)||document.getElementById('stat-weight')?.textContent, spo2:Sanitize.text(fields.spo2)||document.getElementById('stat-spo2')?.textContent, recordedAt:new Date().toISOString() };
   await DB.add('vitals', v);
   renderVitals(v);
   ['v-hr','v-bp','v-temp','v-sugar','v-weight','v-spo2'].forEach(id => _val(id,''));
-  showToast('âœ… Vitals saved!');
+  showToast('Vitals saved!');
 }
 
 async function triggerSOS() {
-  await DB.add('emergencies', { patientId:currentUser?.id||0, type:'SOS', location:'Hyderabad', status:'dispatched', triggeredAt:new Date().toISOString() });
+  if (!currentUser) return;
+  await DB.add('emergencies', { patientId:currentUser.id, type:'SOS', location:'Hyderabad', status:'dispatched', triggeredAt:new Date().toISOString() });
   const logEl = document.getElementById('sos-log');
-  if (logEl) logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px"><div style="font-weight:700;color:#DC2626;font-size:.88rem">ðŸš¨ SOS Triggered â€” ${new Date().toLocaleTimeString()}</div><div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">âœ… Family notified &nbsp;Â·&nbsp; âœ… 3 Hospitals alerted &nbsp;Â·&nbsp; âœ… Ambulance dispatched</div></div>` + logEl.innerHTML;
-  showToast('ðŸš¨ SOS sent! Ambulance dispatched. Family notified.');
+  if (logEl) {
+    logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px"><div style="font-weight:700;color:#DC2626;font-size:.88rem">SOS Triggered - ${new Date().toLocaleTimeString()}</div><div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">Family notified - 3 Hospitals alerted - Ambulance dispatched</div></div>` + logEl.innerHTML;
+  }
+  showToast('SOS sent! Ambulance dispatched. Family notified.');
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HOSPITAL DASHBOARD
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function showHPanel(id, btn) {
   document.querySelectorAll('#page-hospital .dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -700,125 +556,149 @@ function buildBedGrid() {
   const g = document.getElementById('bed-grid');
   if (!g || g.children.length) return;
   const states = ['free','occupied','occupied','free','reserved','occupied','free','occupied','occupied','free','occupied','occupied','reserved','free','occupied','free'];
-  states.forEach((s,i) => {
+  states.forEach((s, i) => {
     const b = document.createElement('div');
-    b.className = `bed-cell bed-${s}`; b.textContent = 'B'+(i+1); b.title = `Bed ${i+1} â€” ${s}`;
-    b.onclick = () => showToast(`Bed ${i+1}: ${s}`);
+    b.className = `bed-cell bed-${s}`;
+    b.textContent = 'B' + (i + 1);
+    b.title = `Bed ${i + 1} - ${s}`;
+    b.onclick = () => showToast(`Bed ${i + 1}: ${s}`);
     g.appendChild(b);
   });
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// LANDING PAGE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-function handleCTA(btn) {
-  const inputs = btn.parentElement.querySelectorAll('input'); let ok = true;
-  inputs.forEach(inp => { if (!inp.value.trim()) { inp.style.borderColor='#F87171'; setTimeout(()=>inp.style.borderColor='',2000); ok=false; } });
-  if (ok) { btn.textContent='Sent âœ“'; btn.style.background='#16A34A'; document.getElementById('cta-success').style.display='block'; inputs.forEach(i=>i.value=''); }
-}
-
-let currentStep = 0;
-function setStep(idx, el) {
-  document.querySelectorAll('.hiw-step').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.hiw-screen').forEach(s => s.classList.remove('active'));
-  el.classList.add('active'); document.getElementById('screen-'+idx).classList.add('active'); currentStep = idx;
-}
-function initHIWAutoPlay() {
-  setInterval(() => {
-    const steps = document.querySelectorAll('.hiw-step');
-    if (!steps.length) return;
-    const next = (currentStep+1) % steps.length; setStep(next, steps[next]);
-  }, 3500);
-}
-
-function switchTab(type, btn) {
-  document.querySelectorAll('.fw-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.fw-content').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active'); document.getElementById('fw-'+type).classList.add('active');
-}
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // WHATSAPP CHAT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 const WA_NUMBER = '919876543210';
 let waOpen = false;
 
 function toggleChat() {
   waOpen = !waOpen;
-  const chat = document.getElementById('waChat'), dot = document.getElementById('waDot');
-  if (waOpen) { chat.classList.add('open'); if(dot) dot.style.display='none'; setTimeout(()=>document.getElementById('waInput')?.focus(), 400); }
-  else chat.classList.remove('open');
+  const chat = document.getElementById('waChat');
+  const dot  = document.getElementById('waDot');
+  if (waOpen) { chat.classList.add('open'); dot.style.display = 'none'; setTimeout(() => document.getElementById('waInput')?.focus(), 400); }
+  else { chat.classList.remove('open'); }
 }
 
 function switchWaTab(tab, btn) {
   document.querySelectorAll('.wa-chat-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.wa-tab-content').forEach(c => c.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  document.getElementById('wa-tab-'+tab).classList.add('active');
+  document.getElementById('wa-tab-' + tab).classList.add('active');
   closeEmojiPicker();
 }
 
 const waReplies = {
-  'book an appointment':    "I can help book an appointment! ðŸ“…\nTell me:\n1. Which specialty?\n2. Preferred date?\n3. Your city?",
-  'emergency sos help':     "ðŸš¨ For emergencies:\nâ€¢ Press the **SOS button** in your dashboard\nâ€¢ Or call **108** immediately\n\nYour location will be shared with nearest hospitals.",
-  'view my health records': "ðŸ“‹ Your health records are in your dashboard.\n\nYou can view prescriptions, lab reports, and share with doctors.",
-  'contact a doctor':       "ðŸ©º Available doctors:\nâ€¢ Dr. S. Rao â€” Cardiology âœ…\nâ€¢ Dr. P. Mehta â€” Ortho âœ…\nâ€¢ Dr. R. Gupta â€” General âœ…\n\nWhich doctor would you like?",
-  'show my health records': "Here are your latest records:\nðŸ“„ Lipid Profile â€” 8 Mar 2026\nðŸ©º Prescription â€” 12 Feb\nðŸ§ª CBC Report â€” 10 Jan",
-  'medication reminders':   "ðŸ’Š Your current schedule:\nâ€¢ Ecosprin 75mg â€” 8:00 AM âœ…\nâ€¢ Metoprolol 25mg â€” 8:00 PM â°\nâ€¢ Atorvastatin 10mg â€” 10:00 PM â°",
-  'lab reports update':     "ðŸ§ª Latest: **Lipid Profile** uploaded by Apollo Hospitals on 8 Mar 2026.\n\nView in your Health Records.",
-  'doctor consultation':    "ðŸ©º Starting consultation...\nAvailable: Dr. Rao (Cardiology), Dr. Mehta (Ortho), Dr. Gupta (General)\nWho would you like to contact?",
-  'blood donor request':    "ðŸ©¸ Found 3 O+ donors within 5 km of Hyderabad.\nShall I send them an alert?",
-  'ambulance tracking':     "ðŸš‘ AMB-02 is 4 minutes away.\nYou'll receive live updates here.",
-  'default':                "Thanks for reaching out! ðŸ˜Š I'm E-Hospitee's WhatsApp assistant.\n\nI can help with:\nðŸ“… Appointments Â· ðŸ“‹ Records\nðŸ’Š Medications Â· ðŸš¨ Emergencies\n\nWhat do you need?"
+  'book an appointment': "I can help you book an appointment!\nTell me:\n1. Which specialty?\n2. Preferred date & time?\n3. Your city?",
+  'emergency sos help': "For emergencies:\n- Press the SOS button in your dashboard\n- Or call 108 immediately",
+  'view my health records': "Your health records are securely stored in your dashboard.",
+  'contact a doctor': "To contact a doctor:\n1. Log in to your dashboard\n2. Go to Appointments\n3. Select your doctor",
+  'medication reminders': "Your current schedule is in the Medications section of your dashboard.",
+  'default': "Thanks for reaching out! I'm the E-Hospitee assistant.\nI can help with:\nAppointments, Records, Medications, Emergencies, Doctor consultation."
 };
-function getReply(msg) { const key = Object.keys(waReplies).find(k => msg.toLowerCase().includes(k)); return waReplies[key] || waReplies['default']; }
+
+function getReply(msg) {
+  const key = Object.keys(waReplies).find(k => msg.toLowerCase().includes(k));
+  return waReplies[key] || waReplies['default'];
+}
 
 function addMessage(text, type) {
-  const c = document.getElementById('waMessages'); if (!c) return;
-  const now = new Date(), time = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  const container = document.getElementById('waMessages');
+  const now = new Date();
+  const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
   const div = document.createElement('div');
-  div.className = 'wa-msg wa-msg-'+type;
-  div.innerHTML = text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>') + `<div class="wa-msg-time">${time}${type==='out'?' <span class="wa-tick">âœ“âœ“</span>':''}</div>`;
-  c.appendChild(div); c.scrollTop = c.scrollHeight;
+  div.className = 'wa-msg wa-msg-' + type;
+  const safeText = type === 'out' ? Sanitize.html(text).replace(/\n/g, '<br>') : text.replace(/\n/g, '<br>');
+  div.innerHTML = safeText + `<div class="wa-msg-time">${time}${type === 'out' ? ' <span class="wa-tick">done</span>' : ''}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
 }
-function showTyping() { const c=document.getElementById('waMessages'); if(!c)return; const t=document.createElement('div'); t.className='wa-typing'; t.id='waTyping'; t.innerHTML='<span></span><span></span><span></span>'; c.appendChild(t); c.scrollTop=c.scrollHeight; }
-function removeTyping() { const t=document.getElementById('waTyping'); if(t)t.remove(); }
+
+function showTyping() {
+  const container = document.getElementById('waMessages');
+  const t = document.createElement('div');
+  t.className = 'wa-typing'; t.id = 'waTyping';
+  t.innerHTML = '<span></span><span></span><span></span>';
+  container.appendChild(t);
+  container.scrollTop = container.scrollHeight;
+}
+function removeTyping() { const t = document.getElementById('waTyping'); if (t) t.remove(); }
 
 function sendWaMessage() {
-  const input = document.getElementById('waInput'); if (!input) return;
-  const text = input.value.trim(); if (!text) return;
-  addMessage(text, 'out'); input.value=''; input.style.height='auto'; closeEmojiPicker();
-  showTyping(); setTimeout(()=>{ removeTyping(); addMessage(getReply(text),'in'); }, 900+Math.random()*600);
+  const input = document.getElementById('waInput');
+  const text = input.value.trim();
+  const msgError = Validate.chatMessage(text);
+  if (msgError) { showToast(msgError); return; }
+  const limit = ActionLimit.check('chat_message', 30, 60 * 1000);
+  if (!limit.allowed) { showToast(`Slow down! Wait ${limit.remaining}s.`); return; }
+  addMessage(text, 'out');
+  input.value = ''; input.style.height = 'auto';
+  closeEmojiPicker();
+  showTyping();
+  setTimeout(() => { removeTyping(); addMessage(getReply(text), 'in'); }, 900 + Math.random() * 600);
 }
+
 function sendQuickReply(text) {
   if (!waOpen) toggleChat();
   switchWaTab('chat', document.querySelector('.wa-chat-tab'));
-  setTimeout(()=>{ addMessage(text,'out'); showTyping(); setTimeout(()=>{ removeTyping(); addMessage(getReply(text),'in'); },1000); }, waOpen?0:400);
+  setTimeout(() => { addMessage(text, 'out'); showTyping(); setTimeout(() => { removeTyping(); addMessage(getReply(text), 'in'); }, 1000); }, waOpen ? 0 : 400);
 }
-function handleWaKey(e) { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendWaMessage(); } }
-function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,80)+'px'; }
 
-const EMOJIS = ['ðŸ˜Š','ðŸ˜·','ðŸ’Š','ðŸ¥','â¤ï¸','ðŸ‘¨â€âš•ï¸','ðŸ©º','ðŸ©¸','ðŸš‘','ðŸ˜°','ðŸ¤’','ðŸ’‰','ðŸ§¬','ðŸ©»','ðŸƒ','ðŸ’ª','ðŸ§˜','ðŸ˜Œ','ðŸ™','âœ…','âš ï¸','ðŸ“‹','ðŸ“…','ðŸ””','ðŸ“ž','ðŸ’¬','ðŸ‘‹','ðŸ¤'];
+function handleWaKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWaMessage(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 80) + 'px'; }
+
+const EMOJIS = ['&#x1F60A;','&#x1F637;','&#x1F48A;','&#x1F3E5;','&#x2764;','&#x1F9BA;','&#x1FA78;','&#x1F691;','&#x1F629;','&#x1F912;','&#x1F489;','&#x1F9EC;','&#x1F3C3;','&#x1F4AA;','&#x1F9D8;','&#x1F60C;','&#x1F64F;','&#x2705;','&#x26A0;','&#x1F4CB;','&#x1F4C5;','&#x1F514;','&#x1F4DE;','&#x1F4AC;','&#x1F44B;','&#x1F91D;'];
+
 function buildEmojiGrid() {
-  const g = document.getElementById('waEmojiGrid'); if (!g || g.children.length) return;
-  EMOJIS.forEach(e => { const s=document.createElement('span'); s.textContent=e; s.onclick=()=>{ const i=document.getElementById('waInput'); if(i) i.value+=e; closeEmojiPicker(); i?.focus(); }; g.appendChild(s); });
+  const g = document.getElementById('waEmojiGrid');
+  if (!g) return;
+  EMOJIS.forEach(e => {
+    const s = document.createElement('span');
+    s.innerHTML = e;
+    s.onclick = () => { document.getElementById('waInput').value += s.textContent; closeEmojiPicker(); document.getElementById('waInput').focus(); };
+    g.appendChild(s);
+  });
 }
-function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('waEmojiPicker')?.classList.toggle('open'); }
+
+function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('waEmojiPicker').classList.toggle('open'); }
 function closeEmojiPicker() { document.getElementById('waEmojiPicker')?.classList.remove('open'); }
 document.addEventListener('click', closeEmojiPicker);
-function openWhatsApp() { window.open(`https://wa.me/${WA_NUMBER}?text=Hi+E-Hospitee!+I+need+help.`,'_blank'); }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function openWhatsApp() { window.open(`https://wa.me/${WA_NUMBER}?text=Hi+E-Hospitee!+I+need+help.`, '_blank'); }
+
+// LANDING PAGE
+function handleCTA(btn) {
+  const inputs = btn.parentElement.querySelectorAll('input');
+  let ok = true;
+  inputs.forEach(inp => { if (!inp.value.trim()) { inp.style.borderColor = '#F87171'; setTimeout(() => inp.style.borderColor = '', 2000); ok = false; } });
+  if (ok) { btn.textContent = 'Sent'; btn.style.background = '#16A34A'; document.getElementById('cta-success').style.display = 'block'; inputs.forEach(i => i.value = ''); }
+}
+
+let currentStep = 0;
+function setStep(idx, el) {
+  document.querySelectorAll('#page-landing .hiw-step').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#page-landing .hiw-screen').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('screen-' + idx).classList.add('active');
+  currentStep = idx;
+}
+
+function switchTab(type, btn) {
+  document.querySelectorAll('.fw-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.fw-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('fw-' + type).classList.add('active');
+}
+
 // UTILITIES
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function showToast(msg) {
-  const t = document.getElementById('toast'); if (!t) return;
+  const t = document.getElementById('toast');
+  if (!t) return;
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
-function _setHTML(id, val) { const el=document.getElementById(id); if(el) el.innerHTML=val; }
-function _val(id, val)     { const el=document.getElementById(id); if(el) el.value=val; }
-function _gval(id)         { const el=document.getElementById(id); return el?el.value.trim():''; }
+
+function _setHTML(id, val) { const el = document.getElementById(id); if (el) el.innerHTML = val; }
+function _val(id, val)     { const el = document.getElementById(id); if (el) el.value = val; }
+function _gval(id)         { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
 
 function navScrollHandler() {
   window.addEventListener('scroll', () => {
@@ -828,25 +708,37 @@ function navScrollHandler() {
 }
 
 function initRevealObserver() {
-  const obs = new IntersectionObserver(es => { es.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold:.12 });
-  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  setTimeout(() => {
+    const obs = new IntersectionObserver(es => { es.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold: .12 });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  }, 200);
 }
 
 function initHeroTilt() {
-  const tilt = document.getElementById('tiltCard'); if (!tilt) return;
+  const tilt = document.getElementById('tiltCard');
+  if (!tilt) return;
   const parent = tilt.closest('.hero-visual');
+  if (!parent) return;
   parent.addEventListener('mousemove', e => {
-    const r=tilt.getBoundingClientRect();
-    const dx=(e.clientX-r.left-r.width/2)/(r.width/2), dy=(e.clientY-r.top-r.height/2)/(r.height/2);
-    tilt.style.transform=`perspective(800px) rotateY(${dx*14}deg) rotateX(${-dy*10}deg) scale(1.02)`;
+    const r = tilt.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width/2) / (r.width/2);
+    const dy = (e.clientY - r.top - r.height/2) / (r.height/2);
+    tilt.style.transform = `perspective(800px) rotateY(${dx*14}deg) rotateX(${-dy*10}deg) scale(1.02)`;
   });
-  parent.addEventListener('mouseleave', () => { tilt.style.transform=''; });
+  parent.addEventListener('mouseleave', () => { tilt.style.transform = ''; });
 }
 
 function initParallax() {
   window.addEventListener('scroll', () => {
-    document.querySelectorAll('.orb').forEach((o,i) => { o.style.transform=`translateY(${scrollY*(0.08+i*0.04)}px)`; });
+    document.querySelectorAll('.orb').forEach((o, i) => { o.style.transform = `translateY(${scrollY*(0.08+i*0.04)}px)`; });
   });
 }
 
-
+function initHIWAutoPlay() {
+  setInterval(() => {
+    const steps = document.querySelectorAll('#page-landing .hiw-step');
+    if (!steps.length) return;
+    const next = (currentStep + 1) % steps.length;
+    setStep(next, steps[next]);
+  }, 3500);
+}
