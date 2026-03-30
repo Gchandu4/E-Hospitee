@@ -171,6 +171,8 @@ const Auth = {
     return `${saltHex}:${hashHex}`;
   },
   async verifyPassword(password, stored) {
+    if (!stored) return false;
+    if (!stored.includes(':')) return stored === password; // legacy plaintext
     const [saltHex, storedHash] = stored.split(':');
     if (!saltHex || !storedHash) return false;
     const data = new TextEncoder().encode(saltHex + password);
@@ -178,6 +180,7 @@ const Auth = {
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
     return hashHex === storedHash;
   },
+  isLegacyPassword(stored) { return stored && !stored.includes(':'); },
   validatePassword(password) {
     if (password.length < 8) return 'Password must be at least 8 characters';
     if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
@@ -493,6 +496,10 @@ async function handleLogin(type) {
     }
     RateLimit.reset();
     SecureLogger.info('login_success', { userId: user.id, type: 'patient' });
+    if (Auth.isLegacyPassword(user.password)) {
+      const hashed = await Auth.hashPassword(pw);
+      await _sb.from('patients').update({ password: hashed }).eq('id', user.id);
+    }
     DB.setSession(user, 'patient');
     window.location.href = 'patient-dashboard.html';
     return;
@@ -509,6 +516,10 @@ async function handleLogin(type) {
     }
     RateLimit.reset();
     SecureLogger.info('login_success', { hospitalId: hosp.id, type: 'hospital' });
+    if (Auth.isLegacyPassword(hosp.password)) {
+      const hashed = await Auth.hashPassword(pw);
+      await _sb.from('hospitals').update({ password: hashed }).eq('id', hosp.id);
+    }
     DB.setSession(hosp, 'hospital');
     window.location.href = 'hospital-dashboard.html';
   }
