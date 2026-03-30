@@ -343,8 +343,11 @@ async function handleRegister() {
     }
   } catch(e) {
     SecureLogger.error('register_error', { message: e.message });
-    showToast('Registration failed: ' + (e.message || 'Please try again'));
+    const errMsg = e.message || 'Unknown error';
+    showToast('Registration failed: ' + errMsg);
     console.error('Register error:', e);
+    // Show alert so error is visible without DevTools
+    alert('Registration error: ' + errMsg);
   }
   btn.textContent = 'Create Account'; btn.disabled = false;
 }
