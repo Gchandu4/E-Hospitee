@@ -3,10 +3,84 @@
 // ══════════════════════════════════════
 
 // ── SUPABASE CONFIG ──
-// Replace these with your actual Supabase project URL and anon key
+// The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
 const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── SECURITY: Password hashing via Web Crypto API (SHA-256 + salt) ──
+const Auth = {
+  // Hash password with a random salt using Web Crypto
+  async hashPassword(password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2,'0')).join('');
+    const encoder = new TextEncoder();
+    const data = encoder.encode(saltHex + password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+    return `${saltHex}:${hashHex}`;
+  },
+
+  // Verify password against stored hash
+  async verifyPassword(password, stored) {
+    const [saltHex, storedHash] = stored.split(':');
+    if (!saltHex || !storedHash) return false;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(saltHex + password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+    return hashHex === storedHash;
+  },
+
+  // Password strength validation
+  validatePassword(password) {
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
+    if (!/[0-9]/.test(password)) return 'Password must contain a number';
+    return null; // valid
+  }
+};
+
+// ── SECURITY: Rate limiting for login attempts ──
+const RateLimit = {
+  _key: 'ehospitee_login_attempts',
+  _max: 5,
+  _windowMs: 15 * 60 * 1000, // 15 minutes
+
+  _getState() {
+    const raw = localStorage.getItem(this._key);
+    return raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() };
+  },
+
+  check() {
+    const state = this._getState();
+    const now = Date.now();
+    // Reset window if expired
+    if (now - state.firstAttempt > this._windowMs) {
+      localStorage.removeItem(this._key);
+      return { allowed: true };
+    }
+    if (state.count >= this._max) {
+      const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
+      return { allowed: false, remaining };
+    }
+    return { allowed: true };
+  },
+
+  record() {
+    const state = this._getState();
+    const now = Date.now();
+    if (now - state.firstAttempt > this._windowMs) {
+      localStorage.setItem(this._key, JSON.stringify({ count: 1, firstAttempt: now }));
+    } else {
+      localStorage.setItem(this._key, JSON.stringify({ count: state.count + 1, firstAttempt: state.firstAttempt }));
+    }
+  },
+
+  reset() {
+    localStorage.removeItem(this._key);
+  }
+};
 
 // ── DATABASE (Supabase) ──
 const DB = {
@@ -14,11 +88,6 @@ const DB = {
 
   async init() {
     await this._loadSession();
-  },
-
-  async _loadSession() {
-    const s = localStorage.getItem(this._prefix + 'session');
-    if (s) currentUser = JSON.parse(s);
   },
 
   /* ── Core CRUD ── */
@@ -63,10 +132,36 @@ const DB = {
   },
 
   /* ── Session ── */
+  // SESSION_TTL: 8 hours
+  _sessionTTL: 8 * 60 * 60 * 1000,
+
   setSession(user, role) {
-    currentUser = { ...user, role };
-    localStorage.setItem(this._prefix + 'session', JSON.stringify(currentUser));
+    // Never store password in session
+    const { password: _omit, ...safeUser } = user;
+    currentUser = { ...safeUser, role };
+    const session = {
+      user: currentUser,
+      expiresAt: Date.now() + this._sessionTTL
+    };
+    localStorage.setItem(this._prefix + 'session', JSON.stringify(session));
   },
+
+  async _loadSession() {
+    const raw = localStorage.getItem(this._prefix + 'session');
+    if (!raw) return;
+    try {
+      const session = JSON.parse(raw);
+      if (!session.expiresAt || Date.now() > session.expiresAt) {
+        // Session expired — clear it
+        this.clearSession();
+        return;
+      }
+      currentUser = session.user;
+    } catch {
+      this.clearSession();
+    }
+  },
+
   clearSession() {
     currentUser = null;
     localStorage.removeItem(this._prefix + 'session');
@@ -121,9 +216,14 @@ async function handleRegister() {
       const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
       if (!firstName || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
       if (password !== confirmPw)            { showToast('⚠️ Passwords do not match');           return; }
+
+      const pwError = Auth.validatePassword(password);
+      if (pwError) { showToast('⚠️ ' + pwError); return; }
+
       if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered'); return; }
 
-      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
+      const hashedPassword = await Auth.hashPassword(password);
+      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
       DB.setSession(user, 'patient');
       await loadPatientDash(user);
       showToast('✅ Account created successfully!');
@@ -133,10 +233,15 @@ async function handleRegister() {
       const inputs = document.querySelectorAll('#reg-hospital-form input');
       const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
       if (!name || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
+
+      const pwError = Auth.validatePassword(password);
+      if (pwError) { showToast('⚠️ ' + pwError); return; }
+
       if (await DB.findByEmail('hospitals', email)) { showToast('⚠️ Email already registered'); return; }
 
-      await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password, createdAt: new Date().toISOString() });
-      DB.setSession({ name, email }, 'hospital');
+      const hashedPassword = await Auth.hashPassword(password);
+      const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt: new Date().toISOString() });
+      DB.setSession(hosp, 'hospital');
       showToast('✅ Hospital account created!');
       setTimeout(() => goPage('page-hospital'), 800);
     }
@@ -158,6 +263,7 @@ function switchLoginTab(type, btn) {
 }
 
 async function handleLogin(type) {
+  // Demo logins bypass rate limiting
   if (type === 'demo-patient') {
     const user = await DB.findByEmail('patients', 'rajesh@demo.com');
     if (user) { DB.setSession(user, 'patient'); await loadPatientDash(user); goPage('page-patient'); }
@@ -168,22 +274,46 @@ async function handleLogin(type) {
     if (hosp) { DB.setSession(hosp, 'hospital'); goPage('page-hospital'); }
     return;
   }
+
+  // Rate limit check
+  const limit = RateLimit.check();
+  if (!limit.allowed) {
+    showToast(`⚠️ Too many attempts. Try again in ${limit.remaining} min.`);
+    return;
+  }
+
   if (type === 'patient') {
     const id = document.getElementById('login-id').value.trim();
     const pw = document.getElementById('login-pw').value.trim();
-    const all  = await DB.getAll('patients');
-    const user = all.find(u => (u.email === id || u.mobile === id) && u.password === pw);
-    if (!user) { showToast('⚠️ Invalid credentials'); return; }
+    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
+
+    const user = await DB.findByEmail('patients', id) ||
+      (await DB.getAll('patients')).find(u => u.mobile === id);
+
+    if (!user || !(await Auth.verifyPassword(pw, user.password))) {
+      RateLimit.record();
+      showToast('⚠️ Invalid credentials');
+      return;
+    }
+    RateLimit.reset();
     DB.setSession(user, 'patient');
     await loadPatientDash(user);
     goPage('page-patient');
     return;
   }
+
   if (type === 'hospital') {
-    const id   = document.getElementById('hosp-login-id').value.trim();
-    const pw   = document.getElementById('hosp-login-pw').value.trim();
+    const id = document.getElementById('hosp-login-id').value.trim();
+    const pw = document.getElementById('hosp-login-pw').value.trim();
+    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
+
     const hosp = await DB.findByEmail('hospitals', id);
-    if (!hosp || hosp.password !== pw) { showToast('⚠️ Invalid credentials'); return; }
+    if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
+      RateLimit.record();
+      showToast('⚠️ Invalid credentials');
+      return;
+    }
+    RateLimit.reset();
     DB.setSession(hosp, 'hospital');
     goPage('page-hospital');
   }

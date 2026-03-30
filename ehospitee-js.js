@@ -2,99 +2,137 @@
 // E-HOSPITEE — app.js (shared across all pages)
 // ══════════════════════════════════════
 
-// ── DATABASE (IndexedDB + localStorage) ──
+// ── SUPABASE CONFIG ──
+// The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
+const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── SECURITY: Password hashing via Web Crypto API ──
+const Auth = {
+  async hashPassword(password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2,'0')).join('');
+    const data = new TextEncoder().encode(saltHex + password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+    return `${saltHex}:${hashHex}`;
+  },
+  async verifyPassword(password, stored) {
+    const [saltHex, storedHash] = stored.split(':');
+    if (!saltHex || !storedHash) return false;
+    const data = new TextEncoder().encode(saltHex + password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+    return hashHex === storedHash;
+  },
+  validatePassword(password) {
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
+    if (!/[0-9]/.test(password)) return 'Password must contain a number';
+    return null;
+  }
+};
+
+// ── SECURITY: Rate limiting ──
+const RateLimit = {
+  _key: 'ehospitee_login_attempts',
+  _max: 5,
+  _windowMs: 15 * 60 * 1000,
+  _getState() {
+    const raw = localStorage.getItem(this._key);
+    return raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() };
+  },
+  check() {
+    const state = this._getState();
+    const now = Date.now();
+    if (now - state.firstAttempt > this._windowMs) { localStorage.removeItem(this._key); return { allowed: true }; }
+    if (state.count >= this._max) {
+      const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
+      return { allowed: false, remaining };
+    }
+    return { allowed: true };
+  },
+  record() {
+    const state = this._getState();
+    const now = Date.now();
+    if (now - state.firstAttempt > this._windowMs) {
+      localStorage.setItem(this._key, JSON.stringify({ count: 1, firstAttempt: now }));
+    } else {
+      localStorage.setItem(this._key, JSON.stringify({ count: state.count + 1, firstAttempt: state.firstAttempt }));
+    }
+  },
+  reset() { localStorage.removeItem(this._key); }
+};
+
+// ── DATABASE (Supabase) ──
 const DB = {
   _prefix: 'ehospitee_',
-  _idb: null,
+  _sessionTTL: 8 * 60 * 60 * 1000, // 8 hours
 
   async init() {
-    return new Promise((res, rej) => {
-      const req = indexedDB.open('EHospiteeDB', 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        ['patients','hospitals','appointments','records','medications','vitals','emergencies','messages'].forEach(store => {
-          if (!db.objectStoreNames.contains(store)) {
-            const s = db.createObjectStore(store, { keyPath:'id', autoIncrement:true });
-            if (store==='patients')     s.createIndex('email','email',{unique:true});
-            if (store==='hospitals')    s.createIndex('email','email',{unique:true});
-            if (store==='appointments') s.createIndex('patientId','patientId',{unique:false});
-            if (store==='records')      s.createIndex('patientId','patientId',{unique:false});
-            if (store==='medications')  s.createIndex('patientId','patientId',{unique:false});
-          }
-        });
-      };
-      req.onsuccess = e => { this._idb = e.target.result; this._seedData(); res(); };
-      req.onerror  = () => rej(req.error);
-    });
+    await this._loadSession();
   },
 
-  async _seedData() {
-    const count = await this.count('patients');
-    if (count > 0) { this._loadSession(); return; }
-
-    await this.add('patients', { firstName:'Rajesh', lastName:'Kumar', email:'rajesh@demo.com', mobile:'+91 98765 43210', dob:'1985-06-15', bloodGroup:'B+', allergies:'Penicillin', emergencyContact:'Priya Kumar — +91 98765 12345', password:'demo123', createdAt:new Date().toISOString() });
-    await this.add('hospitals', { name:'Apollo Hospitals', regNo:'MCI-HYD-2024-00123', email:'admin@apollo.com', password:'demo123', address:'Film Nagar, Jubilee Hills, Hyderabad', phone:'+91 40 2360 7777', emergencyPhone:'+91 40 2360 0000', specialties:'Cardiology, Orthopaedics, Neurology, General Medicine', totalBeds:52, createdAt:new Date().toISOString() });
-
-    const appts = [
-      { patientId:1, doctor:'Dr. S. Rao',   specialty:'Cardiology',   hospital:'Apollo Hospitals', date:'2026-03-12', time:'10:30 AM', status:'upcoming',  fee:600 },
-      { patientId:1, doctor:'Dr. P. Mehta', specialty:'Orthopaedics', hospital:'KIMS Hospital',    date:'2026-03-18', time:'3:00 PM',  status:'upcoming',  fee:500 },
-      { patientId:1, doctor:'Dr. V. Iyer',  specialty:'Neurology',    hospital:'Yashoda Hospital', date:'2026-01-22', time:'11:00 AM', status:'completed', fee:700 },
-      { patientId:1, doctor:'Dr. S. Rao',   specialty:'Cardiology',   hospital:'Apollo Hospitals', date:'2026-01-12', time:'10:00 AM', status:'completed', fee:600 },
-    ];
-    for (const a of appts) await this.add('appointments', { ...a, createdAt:new Date().toISOString() });
-
-    const recs = [
-      { patientId:1, name:'Lipid Profile Report',   type:'lab',          hospital:'Apollo Hospitals', date:'2026-03-08' },
-      { patientId:1, name:'Prescription — Dr. Rao', type:'prescription', hospital:'Apollo Hospitals', date:'2026-02-12' },
-      { patientId:1, name:'Complete Blood Count',   type:'lab',          hospital:'KIMS Hospital',    date:'2026-01-10' },
-      { patientId:1, name:'ECG Report',             type:'report',       hospital:'Apollo Hospitals', date:'2025-12-22' },
-      { patientId:1, name:'Discharge Summary',      type:'summary',      hospital:'Yashoda Hospital', date:'2025-11-15' },
-    ];
-    for (const r of recs) await this.add('records', { ...r, createdAt:new Date().toISOString() });
-
-    const meds = [
-      { patientId:1, name:'Ecosprin 75mg',     dose:'1 tablet', frequency:'After breakfast', time:'8:00 AM',   prescribedBy:'Dr. S. Rao', active:true },
-      { patientId:1, name:'Atorvastatin 10mg', dose:'1 tablet', frequency:'Before bed',      time:'10:00 PM',  prescribedBy:'Dr. S. Rao', active:true },
-      { patientId:1, name:'Metoprolol 25mg',   dose:'1 tablet', frequency:'Twice daily',     time:'8AM / 8PM', prescribedBy:'Dr. S. Rao', active:true },
-    ];
-    for (const m of meds) await this.add('medications', { ...m, createdAt:new Date().toISOString() });
-
-    await this.add('vitals', { patientId:1, heartRate:'72 bpm', bp:'120/80', temp:'36.8°C', sugar:'98 mg/dL', weight:'72 kg', spo2:'98%', recordedAt:new Date().toISOString() });
-    showToast('✅ Database ready with demo data');
+  async _loadSession() {
+    const raw = localStorage.getItem(this._prefix + 'session');
+    if (!raw) return;
+    try {
+      const session = JSON.parse(raw);
+      if (!session.expiresAt || Date.now() > session.expiresAt) { this.clearSession(); return; }
+      currentUser = session.user;
+    } catch { this.clearSession(); }
   },
 
-  _loadSession() {
-    const s = localStorage.getItem(this._prefix + 'session');
-    if (s) currentUser = JSON.parse(s);
+  /* ── Core CRUD ── */
+  async add(table, data) {
+    const { data: row, error } = await _sb.from(table).insert(data).select().single();
+    if (error) throw error;
+    return row;
+  },
+  async get(table, id) {
+    const { data, error } = await _sb.from(table).select('*').eq('id', id).single();
+    if (error) throw error;
+    return data;
+  },
+  async getAll(table) {
+    const { data, error } = await _sb.from(table).select('*');
+    if (error) throw error;
+    return data || [];
+  },
+  async put(table, data) {
+    const { data: row, error } = await _sb.from(table).update(data).eq('id', data.id).select().single();
+    if (error) throw error;
+    return row;
+  },
+  async delete(table, id) {
+    const { error } = await _sb.from(table).delete().eq('id', id);
+    if (error) throw error;
+  },
+  async count(table) {
+    const { count, error } = await _sb.from(table).select('*', { count: 'exact', head: true });
+    if (error) throw error;
+    return count || 0;
+  },
+  async getByIndex(table, col, val) {
+    const { data, error } = await _sb.from(table).select('*').eq(col, val);
+    if (error) throw error;
+    return data || [];
+  },
+  async findByEmail(table, email) {
+    const { data, error } = await _sb.from(table).select('*').eq('email', email).maybeSingle();
+    if (error) throw error;
+    return data || null;
   },
 
-  _tx(store, mode, fn) {
-    return new Promise((res, rej) => {
-      const req = fn(this._idb.transaction(store, mode).objectStore(store));
-      req.onsuccess = () => res(req.result);
-      req.onerror   = () => rej(req.error);
-    });
-  },
-  add    (store, data) { return this._tx(store, 'readwrite', s => s.add(data)); },
-  get    (store, id)   { return this._tx(store, 'readonly',  s => s.get(id)); },
-  getAll (store)       { return this._tx(store, 'readonly',  s => s.getAll()); },
-  put    (store, data) { return this._tx(store, 'readwrite', s => s.put(data)); },
-  delete (store, id)   { return this._tx(store, 'readwrite', s => s.delete(id)); },
-  count  (store)       { return this._tx(store, 'readonly',  s => s.count()); },
-  getByIndex(store, idx, val) {
-    return new Promise((res, rej) => {
-      const req = this._idb.transaction(store,'readonly').objectStore(store).index(idx).getAll(val);
-      req.onsuccess = () => res(req.result);
-      req.onerror   = () => rej(req.error);
-    });
-  },
-  async findByEmail(store, email) {
-    const all = await this.getAll(store);
-    return all.find(r => r.email === email) || null;
-  },
+  /* ── Session ── */
   setSession(user, role) {
-    currentUser = { ...user, role };
-    localStorage.setItem(this._prefix + 'session', JSON.stringify(currentUser));
+    const { password: _omit, ...safeUser } = user;
+    currentUser = { ...safeUser, role };
+    localStorage.setItem(this._prefix + 'session', JSON.stringify({
+      user: currentUser,
+      expiresAt: Date.now() + this._sessionTTL
+    }));
   },
   clearSession() {
     currentUser = null;
@@ -114,9 +152,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Guard protected pages ──
   if (pageId === 'page-patient' || pageId === 'page-hospital') {
-    const session = localStorage.getItem('ehospitee_session');
-    if (!session) { window.location.href = 'login.html'; return; }
-    currentUser = JSON.parse(session);
+    const raw = localStorage.getItem('ehospitee_session');
+    if (!raw) { window.location.href = 'login.html'; return; }
+    try {
+      const session = JSON.parse(raw);
+      if (!session.expiresAt || Date.now() > session.expiresAt) {
+        DB.clearSession();
+        window.location.href = 'login.html';
+        return;
+      }
+      currentUser = session.user;
+    } catch {
+      DB.clearSession();
+      window.location.href = 'login.html';
+      return;
+    }
   }
 
   // ── Per-page init ──
@@ -176,9 +226,11 @@ async function handleRegister() {
       const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
       if (!firstName || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
       if (password !== confirmPw)             { showToast('⚠️ Passwords do not match');          return; }
-      if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered');    return; }
-      const id   = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password, allergies:'', emergencyContact:'', createdAt:new Date().toISOString() });
-      const user = await DB.get('patients', id);
+      const pwError = Auth.validatePassword(password);
+      if (pwError) { showToast('⚠️ ' + pwError); return; }
+      if (await DB.findByEmail('patients', email)) { showToast('⚠️ Email already registered'); return; }
+      const hashedPassword = await Auth.hashPassword(password);
+      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt:new Date().toISOString() });
       DB.setSession(user, 'patient');
       showToast('✅ Account created! Redirecting...');
       setTimeout(() => window.location.href = 'patient-dashboard.html', 900);
@@ -186,9 +238,12 @@ async function handleRegister() {
       const inputs = document.querySelectorAll('#reg-hospital-form input');
       const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
       if (!name || !email || !password) { showToast('⚠️ Please fill all required fields'); return; }
+      const pwError = Auth.validatePassword(password);
+      if (pwError) { showToast('⚠️ ' + pwError); return; }
       if (await DB.findByEmail('hospitals', email)) { showToast('⚠️ Email already registered'); return; }
-      await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password, createdAt:new Date().toISOString() });
-      DB.setSession({ name, email }, 'hospital');
+      const hashedPassword = await Auth.hashPassword(password);
+      const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt:new Date().toISOString() });
+      DB.setSession(hosp, 'hospital');
       showToast('✅ Hospital account created! Redirecting...');
       setTimeout(() => window.location.href = 'hospital-dashboard.html', 900);
     }
@@ -207,7 +262,6 @@ function switchLoginTab(type, btn) {
 }
 
 async function handleLogin(type) {
-  showToast('Signing in...');
   if (type === 'demo-patient') {
     const user = await DB.findByEmail('patients', 'rajesh@demo.com');
     if (user) { DB.setSession(user, 'patient'); window.location.href = 'patient-dashboard.html'; }
@@ -218,19 +272,39 @@ async function handleLogin(type) {
     if (hosp) { DB.setSession(hosp, 'hospital'); window.location.href = 'hospital-dashboard.html'; }
     return;
   }
+
+  // Rate limit check
+  const limit = RateLimit.check();
+  if (!limit.allowed) {
+    showToast(`⚠️ Too many attempts. Try again in ${limit.remaining} min.`);
+    return;
+  }
+
   if (type === 'patient') {
-    const id   = _gval('login-id'), pw = _gval('login-pw');
-    const all  = await DB.getAll('patients');
-    const user = all.find(u => (u.email===id || u.mobile===id) && u.password===pw);
-    if (!user) { showToast('⚠️ Invalid credentials'); return; }
+    const id = _gval('login-id'), pw = _gval('login-pw');
+    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
+    const user = await DB.findByEmail('patients', id) ||
+      (await DB.getAll('patients')).find(u => u.mobile === id);
+    if (!user || !(await Auth.verifyPassword(pw, user.password))) {
+      RateLimit.record();
+      showToast('⚠️ Invalid credentials');
+      return;
+    }
+    RateLimit.reset();
     DB.setSession(user, 'patient');
     window.location.href = 'patient-dashboard.html';
     return;
   }
   if (type === 'hospital') {
-    const id   = _gval('hosp-login-id'), pw = _gval('hosp-login-pw');
+    const id = _gval('hosp-login-id'), pw = _gval('hosp-login-pw');
+    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
     const hosp = await DB.findByEmail('hospitals', id);
-    if (!hosp || hosp.password !== pw) { showToast('⚠️ Invalid credentials'); return; }
+    if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
+      RateLimit.record();
+      showToast('⚠️ Invalid credentials');
+      return;
+    }
+    RateLimit.reset();
     DB.setSession(hosp, 'hospital');
     window.location.href = 'hospital-dashboard.html';
   }
