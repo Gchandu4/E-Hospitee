@@ -2,11 +2,76 @@
 // E-HOSPITEE — app.js (shared across all pages)
 // ══════════════════════════════════════
 
+// ── HTTPS ENFORCEMENT ──
+if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+  location.replace('https:' + location.href.substring(location.protocol.length));
+}
+
 // ── SUPABASE CONFIG ──
 // The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
 const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: {
+    fetch: async (url, options = {}) => {
+      try {
+        const res = await fetch(url, options);
+        if (!res.ok && res.status >= 500) {
+          SecureLogger.error('supabase_api_error', { url, status: res.status });
+        }
+        return res;
+      } catch (err) {
+        SecureLogger.error('supabase_network_error', { url, message: err.message });
+        throw err;
+      }
+    }
+  }
+});
+
+// ── SECURE LOGGER ──
+const SecureLogger = {
+  _isDev: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+  _queue: [],
+  _flushing: false,
+
+  _sanitize(data) {
+    const { password, token, key, secret, ...safe } = data || {};
+    return safe;
+  },
+
+  async _flush() {
+    if (this._flushing || this._queue.length === 0) return;
+    this._flushing = true;
+    const batch = this._queue.splice(0, 10);
+    try {
+      await _sb.from('audit_logs').insert(batch);
+    } catch { /* logging must never break the app */ }
+    this._flushing = false;
+    if (this._queue.length > 0) this._flush();
+  },
+
+  _log(level, event, data) {
+    const entry = {
+      level,
+      event,
+      data: JSON.stringify(this._sanitize(data)),
+      user_id: (typeof currentUser !== 'undefined' && currentUser?.id) || null,
+      user_role: (typeof currentUser !== 'undefined' && currentUser?.role) || null,
+      url: location.pathname,
+      timestamp: new Date().toISOString()
+    };
+    if (this._isDev) {
+      console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[${level.toUpperCase()}] ${event}`, data);
+    }
+    this._queue.push(entry);
+    this._flush();
+  },
+
+  info(event, data = {})  { this._log('info',  event, data); },
+  warn(event, data = {})  { this._log('warn',  event, data); },
+  error(event, data = {}) { this._log('error', event, data); },
+  anomaly(event, data = {}) { this._log('warn', `ANOMALY:${event}`, data); }
+};
 
 // ── SECURITY: Password hashing via Web Crypto API ──
 const Auth = {
@@ -49,6 +114,7 @@ const RateLimit = {
     if (now - state.firstAttempt > this._windowMs) { localStorage.removeItem(this._key); return { allowed: true }; }
     if (state.count >= this._max) {
       const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
+      SecureLogger.anomaly('rate_limit_exceeded', { attempts: state.count });
       return { allowed: false, remaining };
     }
     return { allowed: true };
@@ -69,6 +135,7 @@ const RateLimit = {
 const DB = {
   _prefix: 'ehospitee_',
   _sessionTTL: 8 * 60 * 60 * 1000, // 8 hours
+  _patientTables: new Set(['appointments','records','medications','vitals','emergencies']),
 
   async init() {
     await this._loadSession();
@@ -84,29 +151,61 @@ const DB = {
     } catch { this.clearSession(); }
   },
 
-  /* ── Core CRUD ── */
+  /* ── Core CRUD with IDOR protection ── */
   async add(table, data) {
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (data.patientId !== currentUser.id) {
+        SecureLogger.anomaly('idor_attempt_write', { table, claimedId: data.patientId, actualId: currentUser.id });
+        throw new Error('Access denied: cannot write to another user\'s data');
+      }
+    }
     const { data: row, error } = await _sb.from(table).insert(data).select().single();
     if (error) throw error;
     return row;
   },
   async get(table, id) {
-    const { data, error } = await _sb.from(table).select('*').eq('id', id).single();
+    const query = _sb.from(table).select('*').eq('id', id);
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      query.eq('patientId', currentUser.id);
+    }
+    const { data, error } = await query.single();
     if (error) throw error;
     return data;
   },
   async getAll(table) {
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      const { data, error } = await _sb.from(table).select('*').eq('patientId', currentUser.id);
+      if (error) throw error;
+      return data || [];
+    }
     const { data, error } = await _sb.from(table).select('*');
     if (error) throw error;
     return data || [];
   },
   async put(table, data) {
-    const { data: row, error } = await _sb.from(table).update(data).eq('id', data.id).select().single();
+    let query = _sb.from(table).update(data).eq('id', data.id);
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (data.patientId !== currentUser.id) {
+        SecureLogger.anomaly('idor_attempt_update', { table, claimedId: data.patientId, actualId: currentUser.id });
+        throw new Error('Access denied: cannot modify another user\'s data');
+      }
+      query = query.eq('patientId', currentUser.id);
+    }
+    const { data: row, error } = await query.select().single();
     if (error) throw error;
     return row;
   },
   async delete(table, id) {
-    const { error } = await _sb.from(table).delete().eq('id', id);
+    let query = _sb.from(table).delete().eq('id', id);
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      query = query.eq('patientId', currentUser.id);
+    }
+    const { error } = await query;
     if (error) throw error;
   },
   async count(table) {
@@ -115,6 +214,13 @@ const DB = {
     return count || 0;
   },
   async getByIndex(table, col, val) {
+    if (col === 'patientId' && this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (val !== currentUser.id) {
+        SecureLogger.anomaly('idor_attempt_read', { table, claimedId: val, actualId: currentUser.id });
+        throw new Error('Access denied: cannot access another user\'s data');
+      }
+    }
     const { data, error } = await _sb.from(table).select('*').eq(col, val);
     if (error) throw error;
     return data || [];
@@ -232,6 +338,7 @@ async function handleRegister() {
       const hashedPassword = await Auth.hashPassword(password);
       const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt:new Date().toISOString() });
       DB.setSession(user, 'patient');
+      SecureLogger.info('register_success', { type: 'patient', email });
       showToast('✅ Account created! Redirecting...');
       setTimeout(() => window.location.href = 'patient-dashboard.html', 900);
     } else {
@@ -244,10 +351,11 @@ async function handleRegister() {
       const hashedPassword = await Auth.hashPassword(password);
       const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt:new Date().toISOString() });
       DB.setSession(hosp, 'hospital');
+      SecureLogger.info('register_success', { type: 'hospital', email });
       showToast('✅ Hospital account created! Redirecting...');
       setTimeout(() => window.location.href = 'hospital-dashboard.html', 900);
     }
-  } catch(e) { showToast('⚠️ Registration failed. Try again.'); console.error(e); }
+  } catch(e) { SecureLogger.error('register_error', { message: e.message }); showToast('⚠️ Registration failed. Try again.'); console.error(e); }
   btn.textContent = 'Create Account →'; btn.disabled = false;
 }
 
@@ -276,6 +384,7 @@ async function handleLogin(type) {
   // Rate limit check
   const limit = RateLimit.check();
   if (!limit.allowed) {
+    SecureLogger.anomaly('login_blocked_rate_limit', { remaining: limit.remaining });
     showToast(`⚠️ Too many attempts. Try again in ${limit.remaining} min.`);
     return;
   }
@@ -287,10 +396,12 @@ async function handleLogin(type) {
       (await DB.getAll('patients')).find(u => u.mobile === id);
     if (!user || !(await Auth.verifyPassword(pw, user.password))) {
       RateLimit.record();
+      SecureLogger.warn('login_failed', { identifier: id, type: 'patient' });
       showToast('⚠️ Invalid credentials');
       return;
     }
     RateLimit.reset();
+    SecureLogger.info('login_success', { userId: user.id, type: 'patient' });
     DB.setSession(user, 'patient');
     window.location.href = 'patient-dashboard.html';
     return;
@@ -301,16 +412,18 @@ async function handleLogin(type) {
     const hosp = await DB.findByEmail('hospitals', id);
     if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
       RateLimit.record();
+      SecureLogger.warn('login_failed', { identifier: id, type: 'hospital' });
       showToast('⚠️ Invalid credentials');
       return;
     }
     RateLimit.reset();
+    SecureLogger.info('login_success', { hospitalId: hosp.id, type: 'hospital' });
     DB.setSession(hosp, 'hospital');
     window.location.href = 'hospital-dashboard.html';
   }
 }
 
-function signOut() { DB.clearSession(); window.location.href = 'index.html'; }
+function signOut() { SecureLogger.info('logout', {}); DB.clearSession(); window.location.href = 'index.html'; }
 
 // ══════════════════════════════════════
 // PATIENT DASHBOARD — LOAD & RENDER
@@ -381,8 +494,8 @@ function showPanel(id, btn) {
 
 // ── Patient DB Actions ──
 async function saveProfile() {
-  if (!currentUser) return;
-  const updated = { ...currentUser, firstName:_gval('prof-fname'), lastName:_gval('prof-lname'), dob:_gval('prof-dob'), bloodGroup:document.getElementById('prof-blood')?.value||'', mobile:_gval('prof-mobile'), email:_gval('prof-email'), allergies:_gval('prof-allergies'), emergencyContact:_gval('prof-emergency') };
+  if (!currentUser || currentUser.role !== 'patient') return;
+  const updated = { ...currentUser, id: currentUser.id, patientId: currentUser.id, firstName:_gval('prof-fname'), lastName:_gval('prof-lname'), dob:_gval('prof-dob'), bloodGroup:document.getElementById('prof-blood')?.value||'', mobile:_gval('prof-mobile'), email:_gval('prof-email'), allergies:_gval('prof-allergies'), emergencyContact:_gval('prof-emergency') };
   await DB.put('patients', updated);
   DB.setSession(updated, 'patient');
   _setHTML('patient-name', updated.firstName);

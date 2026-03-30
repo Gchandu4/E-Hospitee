@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<!-- Content Security Policy: restrict resource origins -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;
+  font-src 'self' https://fonts.gstatic.com;
+  connect-src 'self' https://*.supabase.co https://fonts.googleapis.com;
+  img-src 'self' data: blob:;
+  frame-ancestors 'none';
+"/>
+<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
 <title>E-Hospitee — Hospital & Patient Management Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1558,6 +1570,7 @@ const RateLimit = {
 const DB = {
   _prefix: 'ehospitee_',
   _sessionTTL: 8 * 60 * 60 * 1000, // 8 hours
+  _patientTables: new Set(['appointments','records','medications','vitals','emergencies']),
 
   async init() {
     await this._loadSession();
@@ -1573,29 +1586,55 @@ const DB = {
     } catch { this.clearSession(); }
   },
 
-  /* ── Core CRUD ── */
+  /* ── Core CRUD with IDOR protection ── */
   async add(table, data) {
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (data.patientId !== currentUser.id) throw new Error('Access denied: cannot write to another user\'s data');
+    }
     const { data: row, error } = await _sb.from(table).insert(data).select().single();
     if (error) throw error;
     return row;
   },
   async get(table, id) {
-    const { data, error } = await _sb.from(table).select('*').eq('id', id).single();
+    const query = _sb.from(table).select('*').eq('id', id);
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      query.eq('patientId', currentUser.id);
+    }
+    const { data, error } = await query.single();
     if (error) throw error;
     return data;
   },
   async getAll(table) {
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      const { data, error } = await _sb.from(table).select('*').eq('patientId', currentUser.id);
+      if (error) throw error;
+      return data || [];
+    }
     const { data, error } = await _sb.from(table).select('*');
     if (error) throw error;
     return data || [];
   },
   async put(table, data) {
-    const { data: row, error } = await _sb.from(table).update(data).eq('id', data.id).select().single();
+    let query = _sb.from(table).update(data).eq('id', data.id);
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (data.patientId !== currentUser.id) throw new Error('Access denied: cannot modify another user\'s data');
+      query = query.eq('patientId', currentUser.id);
+    }
+    const { data: row, error } = await query.select().single();
     if (error) throw error;
     return row;
   },
   async delete(table, id) {
-    const { error } = await _sb.from(table).delete().eq('id', id);
+    let query = _sb.from(table).delete().eq('id', id);
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      query = query.eq('patientId', currentUser.id);
+    }
+    const { error } = await query;
     if (error) throw error;
   },
   async count(table) {
@@ -1604,6 +1643,10 @@ const DB = {
     return count || 0;
   },
   async getByIndex(table, col, val) {
+    if (col === 'patientId' && this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (val !== currentUser.id) throw new Error('Access denied: cannot access another user\'s data');
+    }
     const { data, error } = await _sb.from(table).select('*').eq(col, val);
     if (error) throw error;
     return data || [];
@@ -1837,6 +1880,8 @@ async function saveProfile() {
   if (!currentUser || currentUser.role !== 'patient') return;
   const updated = {
     ...currentUser,
+    id: currentUser.id, // prevent id tampering
+    patientId: currentUser.id,
     firstName: document.getElementById('prof-fname').value,
     lastName:  document.getElementById('prof-lname').value,
     dob:       document.getElementById('prof-dob').value,

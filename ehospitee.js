@@ -2,11 +2,85 @@
 // E-HOSPITEE — app.js
 // ══════════════════════════════════════
 
+// ── HTTPS ENFORCEMENT ──
+if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+  location.replace('https:' + location.href.substring(location.protocol.length));
+}
+
 // ── SUPABASE CONFIG ──
 // The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
 const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: {
+    fetch: async (url, options = {}) => {
+      try {
+        const res = await fetch(url, options);
+        if (!res.ok && res.status >= 500) {
+          SecureLogger.error('supabase_api_error', { url, status: res.status });
+        }
+        return res;
+      } catch (err) {
+        SecureLogger.error('supabase_network_error', { url, message: err.message });
+        throw err;
+      }
+    }
+  }
+});
+
+// ── SECURE LOGGER ──
+// Logs auth events, API errors, and anomalies to Supabase audit_logs table
+// Falls back to console in dev. Never logs passwords or sensitive PII.
+const SecureLogger = {
+  _isDev: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+  _queue: [],
+  _flushing: false,
+
+  _sanitize(data) {
+    // Strip any accidental sensitive fields before logging
+    const { password, token, key, secret, ...safe } = data || {};
+    return safe;
+  },
+
+  async _flush() {
+    if (this._flushing || this._queue.length === 0) return;
+    this._flushing = true;
+    const batch = this._queue.splice(0, 10);
+    try {
+      await _sb.from('audit_logs').insert(batch);
+    } catch {
+      // Silently fail — logging must never break the app
+    }
+    this._flushing = false;
+    if (this._queue.length > 0) this._flush();
+  },
+
+  _log(level, event, data) {
+    const entry = {
+      level,
+      event,
+      data: JSON.stringify(this._sanitize(data)),
+      user_id: (typeof currentUser !== 'undefined' && currentUser?.id) || null,
+      user_role: (typeof currentUser !== 'undefined' && currentUser?.role) || null,
+      url: location.pathname,
+      timestamp: new Date().toISOString()
+    };
+    if (this._isDev) {
+      console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[${level.toUpperCase()}] ${event}`, data);
+    }
+    this._queue.push(entry);
+    this._flush();
+  },
+
+  info(event, data = {})  { this._log('info',  event, data); },
+  warn(event, data = {})  { this._log('warn',  event, data); },
+  error(event, data = {}) { this._log('error', event, data); },
+
+  // Detect and log anomalous patterns
+  anomaly(event, data = {}) {
+    this._log('warn', `ANOMALY:${event}`, data);
+  }
+};
 
 // ── SECURITY: Password hashing via Web Crypto API (SHA-256 + salt) ──
 const Auth = {
@@ -62,6 +136,7 @@ const RateLimit = {
     }
     if (state.count >= this._max) {
       const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
+      SecureLogger.anomaly('rate_limit_exceeded', { attempts: state.count, windowMs: this._windowMs });
       return { allowed: false, remaining };
     }
     return { allowed: true };
@@ -86,45 +161,108 @@ const RateLimit = {
 const DB = {
   _prefix: 'ehospitee_',
 
+  // Tables where rows belong to a patient via patientId column
+  _patientTables: new Set(['appointments','records','medications','vitals','emergencies']),
+
   async init() {
     await this._loadSession();
   },
 
+  // Throws if the current user doesn't own the row
+  _assertOwner(row) {
+    if (!currentUser) throw new Error('Not authenticated');
+    if (this._patientTables.has(row._table || '') && row.patientId !== currentUser.id) {
+      throw new Error('Access denied: you do not own this resource');
+    }
+  },
+
   /* ── Core CRUD ── */
   async add(table, data) {
+    // Enforce patientId matches current user for patient-owned tables
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (data.patientId !== currentUser.id) {
+        SecureLogger.anomaly('idor_attempt_write', { table, claimedId: data.patientId, actualId: currentUser.id });
+        throw new Error('Access denied: cannot write to another user\'s data');
+      }
+    }
     const { data: row, error } = await _sb.from(table).insert(data).select().single();
     if (error) throw error;
     return row;
   },
+
   async get(table, id) {
-    const { data, error } = await _sb.from(table).select('*').eq('id', id).single();
+    const query = _sb.from(table).select('*').eq('id', id);
+    // Scope to current user for patient-owned tables
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      query.eq('patientId', currentUser.id);
+    }
+    const { data, error } = await query.single();
     if (error) throw error;
     return data;
   },
+
   async getAll(table) {
+    // For patient tables, always scope to current user
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      const { data, error } = await _sb.from(table).select('*').eq('patientId', currentUser.id);
+      if (error) throw error;
+      return data || [];
+    }
     const { data, error } = await _sb.from(table).select('*');
     if (error) throw error;
     return data || [];
   },
+
   async put(table, data) {
-    const { data: row, error } = await _sb.from(table).update(data).eq('id', data.id).select().single();
+    let query = _sb.from(table).update(data).eq('id', data.id);
+    // Enforce ownership: only update rows that belong to current user
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (data.patientId !== currentUser.id) {
+        SecureLogger.anomaly('idor_attempt_update', { table, claimedId: data.patientId, actualId: currentUser.id });
+        throw new Error('Access denied: cannot modify another user\'s data');
+      }
+      query = query.eq('patientId', currentUser.id);
+    }
+    const { data: row, error } = await query.select().single();
     if (error) throw error;
     return row;
   },
+
   async delete(table, id) {
-    const { error } = await _sb.from(table).delete().eq('id', id);
+    let query = _sb.from(table).delete().eq('id', id);
+    // Enforce ownership on delete
+    if (this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      query = query.eq('patientId', currentUser.id);
+    }
+    const { error } = await query;
     if (error) throw error;
   },
+
   async count(table) {
     const { count, error } = await _sb.from(table).select('*', { count: 'exact', head: true });
     if (error) throw error;
     return count || 0;
   },
+
   async getByIndex(table, col, val) {
+    // If querying by patientId, enforce it matches the logged-in user
+    if (col === 'patientId' && this._patientTables.has(table)) {
+      if (!currentUser) throw new Error('Not authenticated');
+      if (val !== currentUser.id) {
+        SecureLogger.anomaly('idor_attempt_read', { table, claimedId: val, actualId: currentUser.id });
+        throw new Error('Access denied: cannot access another user\'s data');
+      }
+    }
     const { data, error } = await _sb.from(table).select('*').eq(col, val);
     if (error) throw error;
     return data || [];
   },
+
   async findByEmail(table, email) {
     const { data, error } = await _sb.from(table).select('*').eq('email', email).maybeSingle();
     if (error) throw error;
@@ -225,6 +363,7 @@ async function handleRegister() {
       const hashedPassword = await Auth.hashPassword(password);
       const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
       DB.setSession(user, 'patient');
+      SecureLogger.info('register_success', { type: 'patient', email });
       await loadPatientDash(user);
       showToast('✅ Account created successfully!');
       setTimeout(() => goPage('page-patient'), 800);
@@ -242,10 +381,12 @@ async function handleRegister() {
       const hashedPassword = await Auth.hashPassword(password);
       const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt: new Date().toISOString() });
       DB.setSession(hosp, 'hospital');
+      SecureLogger.info('register_success', { type: 'hospital', email });
       showToast('✅ Hospital account created!');
       setTimeout(() => goPage('page-hospital'), 800);
     }
   } catch(e) {
+    SecureLogger.error('register_error', { message: e.message });
     showToast('⚠️ Registration failed. Try again.');
     console.error(e);
   }
@@ -278,6 +419,7 @@ async function handleLogin(type) {
   // Rate limit check
   const limit = RateLimit.check();
   if (!limit.allowed) {
+    SecureLogger.anomaly('login_blocked_rate_limit', { remaining: limit.remaining });
     showToast(`⚠️ Too many attempts. Try again in ${limit.remaining} min.`);
     return;
   }
@@ -292,10 +434,12 @@ async function handleLogin(type) {
 
     if (!user || !(await Auth.verifyPassword(pw, user.password))) {
       RateLimit.record();
+      SecureLogger.warn('login_failed', { identifier: id, type: 'patient' });
       showToast('⚠️ Invalid credentials');
       return;
     }
     RateLimit.reset();
+    SecureLogger.info('login_success', { userId: user.id, type: 'patient' });
     DB.setSession(user, 'patient');
     await loadPatientDash(user);
     goPage('page-patient');
@@ -310,16 +454,18 @@ async function handleLogin(type) {
     const hosp = await DB.findByEmail('hospitals', id);
     if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
       RateLimit.record();
+      SecureLogger.warn('login_failed', { identifier: id, type: 'hospital' });
       showToast('⚠️ Invalid credentials');
       return;
     }
     RateLimit.reset();
+    SecureLogger.info('login_success', { hospitalId: hosp.id, type: 'hospital' });
     DB.setSession(hosp, 'hospital');
     goPage('page-hospital');
   }
 }
 
-function signOut() { DB.clearSession(); goPage('page-landing'); }
+function signOut() { SecureLogger.info('logout', {}); DB.clearSession(); goPage('page-landing'); }
 
 // ══════════════════════════════════════
 // PATIENT DASHBOARD — LOAD & RENDER
@@ -419,9 +565,11 @@ function showPanel(id, btn) {
 }
 
 async function saveProfile() {
-  if (!currentUser) return;
+  if (!currentUser || currentUser.role !== 'patient') return;
   const updated = {
     ...currentUser,
+    id: currentUser.id, // ensure id cannot be overridden from form input
+    patientId: currentUser.id,
     firstName:        _gval('prof-fname'),
     lastName:         _gval('prof-lname'),
     dob:              _gval('prof-dob'),
