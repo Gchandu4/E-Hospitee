@@ -6,87 +6,136 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; frame-ancestors 'none';"/>
 <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
-<title>E-Hospitee â€” Sign In</title>
+<title>E-Hospitee - Sign In</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="ehospitee.css"/>
+<style>
+/* Loading state */
+.form-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.form-btn .btn-spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; }
+.form-btn.loading .btn-spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Field error state */
+.form-control.error { border-color: #EF4444 !important; }
+.field-error { font-size: .75rem; color: #EF4444; margin-top: 4px; display: none; }
+.field-error.show { display: block; }
+
+/* Password toggle */
+.pw-wrap { position: relative; }
+.pw-wrap .form-control { padding-right: 44px; }
+.pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--ink-light); font-size: .85rem; padding: 4px; }
+.pw-toggle:hover { color: var(--teal); }
+
+/* Auth page base */
+.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 80px 16px 40px; background: var(--cream); }
+.auth-card { background: white; border-radius: 20px; padding: 40px; width: 100%; max-width: 460px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+.auth-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.auth-title { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.auth-sub { font-size: .88rem; color: var(--ink-light); margin-bottom: 24px; }
+.auth-tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--cream); border-radius: 10px; padding: 4px; }
+.auth-tab { flex: 1; padding: 10px; border: none; background: none; border-radius: 8px; font-size: .88rem; font-weight: 500; color: var(--ink-mid); cursor: pointer; transition: all .2s; }
+.auth-tab.active { background: white; color: var(--teal); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.auth-divider { text-align: center; font-size: .78rem; color: var(--ink-light); margin: 20px 0; position: relative; }
+.auth-divider::before, .auth-divider::after { content: ''; position: absolute; top: 50%; width: 42%; height: 1px; background: var(--border); }
+.auth-divider::before { left: 0; } .auth-divider::after { right: 0; }
+.auth-switch { text-align: center; font-size: .85rem; color: var(--ink-mid); margin-top: 20px; }
+.auth-switch a { color: var(--teal); font-weight: 600; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+.btn-secondary { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1.5px solid var(--border); border-radius: 10px; background: white; color: var(--ink); font-size: .85rem; font-weight: 500; cursor: pointer; transition: all .2s; }
+.btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
+</style>
 </head>
 <body id="page-login">
 
-<!-- â”€â”€ NAV â”€â”€ -->
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">
-      <div class="logo-mark">ðŸ¥</div>
+      <div class="logo-mark">&#x1F3E5;</div>
       <span class="logo-text">E-Hospi<span>tee</span></span>
     </a>
     <ul class="nav-links">
-      <li><a href="index.html">â† Back to Home</a></li>
+      <li><a href="index.html">&#x2190; Back to Home</a></li>
       <li><a href="ehospitee-register.html" class="nav-btn">Create Account</a></li>
     </ul>
   </div>
 </nav>
 
-<!-- â”€â”€ LOGIN FORM â”€â”€ -->
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="logo-mark" style="width:44px;height:44px;font-size:1.3rem">ðŸ¥</div>
+      <div class="logo-mark" style="width:44px;height:44px;font-size:1.3rem">&#x1F3E5;</div>
       <span class="logo-text" style="font-size:1.7rem">E-Hospi<span>tee</span></span>
     </div>
     <h2 class="auth-title">Welcome back</h2>
     <p class="auth-sub">Sign in to your E-Hospitee account</p>
 
-    <!-- Role Tabs -->
     <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchLoginTab('patient', this)">ðŸ‘¤ Patient</button>
-      <button class="auth-tab" onclick="switchLoginTab('hospital', this)">ðŸ¥ Hospital</button>
+      <button class="auth-tab active" id="tab-patient" onclick="switchLoginTab('patient', this)">&#x1F464; Patient</button>
+      <button class="auth-tab" id="tab-hospital" onclick="switchLoginTab('hospital', this)">&#x1F3E5; Hospital</button>
     </div>
 
     <!-- Patient Login -->
     <div id="login-patient">
       <div class="form-group">
-        <label class="form-label">Mobile Number or Email</label>
-        <input class="form-control" type="text" id="login-id" placeholder="+91 98765 43210 or email"/>
+        <label class="form-label" for="login-id">Mobile Number or Email</label>
+        <input class="form-control" type="text" id="login-id" name="login-id"
+          autocomplete="username" placeholder="+91 98765 43210 or email"
+          oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('patient')"/>
+        <div class="field-error" id="err-login-id"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input class="form-control" type="password" id="login-pw" placeholder="Enter your password" onkeydown="if(event.key==='Enter') handleLogin('patient')"/>
+        <label class="form-label" for="login-pw">Password</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="login-pw" name="login-pw"
+            autocomplete="current-password" placeholder="Enter your password"
+            oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('patient')"/>
+          <button type="button" class="pw-toggle" onclick="togglePw('login-pw', this)" aria-label="Show password">&#x1F441;</button>
+        </div>
+        <div class="field-error" id="err-login-pw"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-mid);cursor:pointer">
-          <input type="checkbox" style="accent-color:var(--teal)"/> Remember me
-        </label>
-        <a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+        <a href="#" style="font-size:.82rem;color:var(--teal);font-weight:600;text-decoration:none" onclick="showToast('Password reset coming soon');return false;">Forgot password?</a>
       </div>
-      <button class="form-btn" onclick="handleLogin('patient')">Sign In as Patient â†’</button>
+      <button class="form-btn" id="btn-patient-login" onclick="doLogin('patient')">
+        <span class="btn-spinner"></span>Sign In as Patient
+      </button>
     </div>
 
     <!-- Hospital Login -->
     <div id="login-hospital" style="display:none">
       <div class="form-group">
-        <label class="form-label">Hospital Email</label>
-        <input class="form-control" type="email" id="hosp-login-id" placeholder="admin@hospital.com"/>
+        <label class="form-label" for="hosp-login-id">Hospital Email</label>
+        <input class="form-control" type="email" id="hosp-login-id" name="hosp-login-id"
+          autocomplete="username" placeholder="admin@hospital.com"
+          oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('hospital')"/>
+        <div class="field-error" id="err-hosp-login-id"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input class="form-control" type="password" id="hosp-login-pw" placeholder="Enter your password" onkeydown="if(event.key==='Enter') handleLogin('hospital')"/>
+        <label class="form-label" for="hosp-login-pw">Password</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="hosp-login-pw" name="hosp-login-pw"
+            autocomplete="current-password" placeholder="Enter your password"
+            oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('hospital')"/>
+          <button type="button" class="pw-toggle" onclick="togglePw('hosp-login-pw', this)" aria-label="Show password">&#x1F441;</button>
+        </div>
+        <div class="field-error" id="err-hosp-login-pw"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-mid);cursor:pointer">
-          <input type="checkbox" style="accent-color:var(--teal)"/> Remember me
-        </label>
-        <a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+        <a href="#" style="font-size:.82rem;color:var(--teal);font-weight:600;text-decoration:none" onclick="showToast('Password reset coming soon');return false;">Forgot password?</a>
       </div>
-      <button class="form-btn" onclick="handleLogin('hospital')">Sign In as Hospital â†’</button>
+      <button class="form-btn" id="btn-hospital-login" onclick="doLogin('hospital')">
+        <span class="btn-spinner"></span>Sign In as Hospital
+      </button>
     </div>
 
     <div class="auth-divider">or try a demo</div>
     <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-patient')">
-      ðŸŽ¯ Patient Demo â€” (rajesh@demo.com / demo123)
+      &#x1F3AF; Patient Demo &mdash; rajesh@demo.com / demo123
     </button>
     <div style="height:10px"></div>
     <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-hospital')">
-      ðŸ¥ Hospital Demo â€” (admin@apollo.com / demo123)
+      &#x1F3E5; Hospital Demo &mdash; admin@apollo.com / demo123
     </button>
 
     <div class="auth-switch">
@@ -98,6 +147,61 @@
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="ehospitee-js.js"></script>
+<script>
+// Password show/hide toggle
+function togglePw(fieldId, btn) {
+  const input = document.getElementById(fieldId);
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
+  else { input.type = 'password'; btn.innerHTML = '&#x1F441;'; }
+}
+
+// Clear field error on input
+function clearFieldError(input) {
+  input.classList.remove('error');
+  const errEl = document.getElementById('err-' + input.id);
+  if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+}
+
+function showFieldError(fieldId, msg) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById('err-' + fieldId);
+  if (input) input.classList.add('error');
+  if (errEl) { errEl.textContent = msg; errEl.classList.add('show'); }
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.classList.toggle('loading', loading);
+}
+
+// Wrapper with validation + loading state
+async function doLogin(type) {
+  const btnId = type === 'patient' ? 'btn-patient-login' : 'btn-hospital-login';
+  let valid = true;
+
+  if (type === 'patient') {
+    const id = document.getElementById('login-id').value.trim();
+    const pw = document.getElementById('login-pw').value.trim();
+    if (!id) { showFieldError('login-id', 'Please enter your email or mobile'); valid = false; }
+    if (!pw) { showFieldError('login-pw', 'Please enter your password'); valid = false; }
+    if (!valid) return;
+  } else {
+    const id = document.getElementById('hosp-login-id').value.trim();
+    const pw = document.getElementById('hosp-login-pw').value.trim();
+    if (!id) { showFieldError('hosp-login-id', 'Please enter your email'); valid = false; }
+    if (!pw) { showFieldError('hosp-login-pw', 'Please enter your password'); valid = false; }
+    if (!valid) return;
+  }
+
+  setLoading(btnId, true);
+  try {
+    await handleLogin(type);
+  } finally {
+    setLoading(btnId, false);
+  }
+}
+</script>
 </body>
 </html>
-
