@@ -216,7 +216,7 @@ select.form-control { cursor: pointer; }
         <label class="form-label" for="login-id">Mobile Number or Email</label>
         <input class="form-control" type="text" id="login-id" name="login-id"
           autocomplete="username" placeholder="+91 98765 43210 or email"
-          oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('patient')"/>
+          oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doDirectLogin('patient')"/>
         <div class="field-error" id="err-login-id"></div>
       </div>
       <div class="form-group">
@@ -224,7 +224,7 @@ select.form-control { cursor: pointer; }
         <div class="pw-wrap">
           <input class="form-control" type="password" id="login-pw" name="login-pw"
             autocomplete="current-password" placeholder="Enter your password"
-            oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('patient')"/>
+            oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doDirectLogin('patient')"/>
           <button type="button" class="pw-toggle" onclick="togglePw('login-pw', this)" aria-label="Show password">&#x1F441;</button>
         </div>
         <div class="field-error" id="err-login-pw"></div>
@@ -232,7 +232,7 @@ select.form-control { cursor: pointer; }
       <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
         <a href="#" style="font-size:.82rem;color:var(--teal);font-weight:600;text-decoration:none" onclick="showToast('Password reset coming soon');return false;">Forgot password?</a>
       </div>
-      <button class="form-btn" id="btn-patient-login" onclick="doLogin('patient')">
+      <button class="form-btn" id="btn-patient-login" onclick="doDirectLogin('patient')">
         <span class="btn-spinner"></span>Sign In as Patient
       </button>
     </div>
@@ -243,7 +243,7 @@ select.form-control { cursor: pointer; }
         <label class="form-label" for="hosp-login-id">Hospital Email</label>
         <input class="form-control" type="email" id="hosp-login-id" name="hosp-login-id"
           autocomplete="username" placeholder="admin@hospital.com"
-          oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('hospital')"/>
+          oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doDirectLogin('hospital')"/>
         <div class="field-error" id="err-hosp-login-id"></div>
       </div>
       <div class="form-group">
@@ -251,7 +251,7 @@ select.form-control { cursor: pointer; }
         <div class="pw-wrap">
           <input class="form-control" type="password" id="hosp-login-pw" name="hosp-login-pw"
             autocomplete="current-password" placeholder="Enter your password"
-            oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doLogin('hospital')"/>
+            oninput="clearFieldError(this)" onkeydown="if(event.key==='Enter') doDirectLogin('hospital')"/>
           <button type="button" class="pw-toggle" onclick="togglePw('hosp-login-pw', this)" aria-label="Show password">&#x1F441;</button>
         </div>
         <div class="field-error" id="err-hosp-login-pw"></div>
@@ -259,7 +259,7 @@ select.form-control { cursor: pointer; }
       <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
         <a href="#" style="font-size:.82rem;color:var(--teal);font-weight:600;text-decoration:none" onclick="showToast('Password reset coming soon');return false;">Forgot password?</a>
       </div>
-      <button class="form-btn" id="btn-hospital-login" onclick="doLogin('hospital')">
+      <button class="form-btn" id="btn-hospital-login" onclick="doDirectLogin('hospital')">
         <span class="btn-spinner"></span>Sign In as Hospital
       </button>
     </div>
@@ -336,6 +336,71 @@ async function doLogin(type) {
   } finally {
     setLoading(btnId, false);
   }
+}
+
+// Direct login — queries Supabase directly, shows real errors
+async function doDirectLogin(type) {
+  const btnId = type === 'patient' ? 'btn-patient-login' : 'btn-hospital-login';
+  let id, pw;
+
+  if (type === 'patient') {
+    id = document.getElementById('login-id').value.trim();
+    pw = document.getElementById('login-pw').value.trim();
+    if (!id) { showFieldError('login-id', 'Please enter your email or mobile'); return; }
+    if (!pw) { showFieldError('login-pw', 'Please enter your password'); return; }
+  } else {
+    id = document.getElementById('hosp-login-id').value.trim();
+    pw = document.getElementById('hosp-login-pw').value.trim();
+    if (!id) { showFieldError('hosp-login-id', 'Please enter your email'); return; }
+    if (!pw) { showFieldError('hosp-login-pw', 'Please enter your password'); return; }
+  }
+
+  setLoading(btnId, true);
+  try {
+    const table = type === 'patient' ? 'patients' : 'hospitals';
+
+    // Query by email
+    let { data: user, error } = await _sb.from(table).select('*').eq('email', id.toLowerCase()).maybeSingle();
+
+    // If patient, also try mobile
+    if (!user && type === 'patient') {
+      const res = await _sb.from(table).select('*').eq('mobile', id).maybeSingle();
+      user = res.data; error = res.error;
+    }
+
+    if (error) { showToast('Login error: ' + error.message); return; }
+    if (!user) { showToast('No account found with that email. Please register first.'); return; }
+
+    // Verify password
+    const ok = await verifyPw(pw, user.password);
+    if (!ok) { showToast('Wrong password. Please try again.'); return; }
+
+    // Save session
+    const { password: _omit, ...safeUser } = user;
+    const session = { user: { ...safeUser, role: type }, expiresAt: Date.now() + 8*60*60*1000 };
+    localStorage.setItem('ehospitee_session', JSON.stringify(session));
+
+    showToast('Welcome back, ' + (user.firstName || user.name || user.email) + '!');
+    setTimeout(() => { window.location.href = 'ehospitee-patient.html'; }, 800);
+
+  } catch(e) {
+    showToast('Login error: ' + e.message);
+    console.error(e);
+  } finally {
+    setLoading(btnId, false);
+  }
+}
+
+// Password verify (handles both hashed and legacy plaintext)
+async function verifyPw(password, stored) {
+  if (!stored) return false;
+  if (!stored.includes(':')) return stored === password; // legacy
+  const [saltHex, storedHash] = stored.split(':');
+  if (!saltHex || !storedHash) return false;
+  const data = new TextEncoder().encode(saltHex + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+  return hashHex === storedHash;
 }
 </script>
 </body>
