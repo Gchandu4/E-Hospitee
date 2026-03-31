@@ -306,18 +306,34 @@ async function handleRegister() {
       if (password !== confirmPw) { showToast('Passwords do not match'); btn.textContent='Create Account'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
       if (pwError) { showToast(pwError); btn.textContent='Create Account'; btn.disabled=false; return; }
-      const existing = await DB.findByEmail('patients', email);
-      if (existing) { showToast('Email already registered'); btn.textContent='Create Account'; btn.disabled=false; return; }
+
+      // Check if email already exists
+      const { data: existing } = await _sb.from('patients').select('id').eq('email', email.toLowerCase()).maybeSingle();
+      if (existing) { showToast('Email already registered. Please sign in.'); btn.textContent='Create Account'; btn.disabled=false; return; }
 
       const hashedPassword = await Auth.hashPassword(password);
-      const user = await DB.add('patients', {
-        firstName: Sanitize.text(firstName), lastName: Sanitize.text(lastName),
-        mobile: Sanitize.text(mobile), email: email.toLowerCase(),
-        dob, bloodGroup, password: hashedPassword,
-        allergies: '', emergencyContact: '', createdAt: new Date().toISOString()
-      });
+
+      // Direct Supabase insert — bypasses all middleware
+      const { data: user, error } = await _sb.from('patients').insert({
+        firstName: Sanitize.text(firstName),
+        lastName:  Sanitize.text(lastName),
+        mobile:    Sanitize.text(mobile),
+        email:     email.toLowerCase(),
+        dob:       dob || null,
+        bloodGroup: bloodGroup || null,
+        password:  hashedPassword,
+        allergies: '',
+        emergencyContact: '',
+        createdAt: new Date().toISOString()
+      }).select().single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        showToast('Registration failed: ' + error.message);
+        btn.textContent='Create Account'; btn.disabled=false; return;
+      }
+
       DB.setSession(user, 'patient');
-      SecureLogger.info('register_success', { type: 'patient' });
       showToast('Account created! Redirecting...');
       setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
 
@@ -334,27 +350,37 @@ async function handleRegister() {
       if (!name || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
       if (pwError) { showToast(pwError); btn.textContent='Create Account'; btn.disabled=false; return; }
-      const existing = await DB.findByEmail('hospitals', email);
-      if (existing) { showToast('Email already registered'); btn.textContent='Create Account'; btn.disabled=false; return; }
+
+      const { data: existing } = await _sb.from('hospitals').select('id').eq('email', email.toLowerCase()).maybeSingle();
+      if (existing) { showToast('Email already registered. Please sign in.'); btn.textContent='Create Account'; btn.disabled=false; return; }
 
       const hashedPassword = await Auth.hashPassword(password);
-      const hosp = await DB.add('hospitals', {
-        name: Sanitize.text(name), regNo: Sanitize.text(regNo),
-        city: Sanitize.text(city), pincode: Sanitize.text(pincode),
-        contactPerson: Sanitize.text(contactPerson), email: email.toLowerCase(),
-        phone: Sanitize.text(phone), password: hashedPassword,
-        createdAt: new Date().toISOString()
-      });
+
+      const { data: hosp, error } = await _sb.from('hospitals').insert({
+        name:          Sanitize.text(name),
+        regNo:         Sanitize.text(regNo),
+        city:          Sanitize.text(city),
+        pincode:       Sanitize.text(pincode),
+        contactPerson: Sanitize.text(contactPerson),
+        email:         email.toLowerCase(),
+        phone:         Sanitize.text(phone),
+        password:      hashedPassword,
+        createdAt:     new Date().toISOString()
+      }).select().single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        showToast('Registration failed: ' + error.message);
+        btn.textContent='Create Account'; btn.disabled=false; return;
+      }
+
       DB.setSession(hosp, 'hospital');
-      SecureLogger.info('register_success', { type: 'hospital' });
       showToast('Hospital account created! Redirecting...');
       setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
     }
   } catch(e) {
-    SecureLogger.error('register_error', { message: e.message });
-    // Show the actual Supabase error so we can debug
-    showToast('Registration failed: ' + (e.message || 'Please try again'));
     console.error('Register error:', e);
+    showToast('Registration failed: ' + (e.message || 'Check console for details'));
   }
   btn.textContent = 'Create Account'; btn.disabled = false;
 }

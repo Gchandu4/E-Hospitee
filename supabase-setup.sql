@@ -1,9 +1,8 @@
 -- ══════════════════════════════════════
--- E-HOSPITEE — Supabase Setup
--- Run this ENTIRE script in Supabase SQL Editor
+-- E-HOSPITEE — Run this in Supabase SQL Editor
 -- ══════════════════════════════════════
 
--- 1. Create tables if they don't exist
+-- Step 1: Create tables
 create table if not exists patients (
   id            uuid primary key default gen_random_uuid(),
   "firstName"   text,
@@ -56,15 +55,15 @@ create table if not exists records (
 );
 
 create table if not exists medications (
-  id            uuid primary key default gen_random_uuid(),
-  "patientId"   uuid,
-  name          text,
-  dose          text,
-  frequency     text,
-  time          text,
+  id             uuid primary key default gen_random_uuid(),
+  "patientId"    uuid,
+  name           text,
+  dose           text,
+  frequency      text,
+  time           text,
   "prescribedBy" text,
-  active        boolean,
-  "createdAt"   text
+  active         boolean,
+  "createdAt"    text
 );
 
 create table if not exists vitals (
@@ -80,11 +79,11 @@ create table if not exists vitals (
 );
 
 create table if not exists emergencies (
-  id           uuid primary key default gen_random_uuid(),
-  "patientId"  uuid,
-  type         text,
-  location     text,
-  status       text,
+  id            uuid primary key default gen_random_uuid(),
+  "patientId"   uuid,
+  type          text,
+  location      text,
+  status        text,
   "triggeredAt" text
 );
 
@@ -99,16 +98,17 @@ create table if not exists audit_logs (
   timestamp timestamptz default now()
 );
 
--- 2. Disable RLS on all tables (app uses custom auth)
-alter table patients     disable row level security;
-alter table hospitals    disable row level security;
-alter table appointments disable row level security;
-alter table records      disable row level security;
-alter table medications  disable row level security;
-alter table vitals       disable row level security;
-alter table emergencies  disable row level security;
-alter table audit_logs   disable row level security;
+-- Step 2: Disable RLS on ALL tables
+alter table patients      disable row level security;
+alter table hospitals     disable row level security;
+alter table appointments  disable row level security;
+alter table records       disable row level security;
+alter table medications   disable row level security;
+alter table vitals        disable row level security;
+alter table emergencies   disable row level security;
+alter table audit_logs    disable row level security;
 
--- 3. Grant full access to anon role
-grant all on all tables    in schema public to anon;
-grant all on all sequences in schema public to anon;
+-- Step 3: Grant full access to anon role
+grant all privileges on all tables    in schema public to anon;
+grant all privileges on all sequences in schema public to anon;
+grant usage on schema public to anon;
