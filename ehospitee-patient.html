@@ -64,7 +64,7 @@
     <!-- OVERVIEW -->
     <div class="dash-panel active" id="p-overview">
       <div class="dash-header">
-        <div class="dash-title">Good morning 👋</div>
+        <div class="dash-title">Good morning, <span id="dash-greeting-name">...</span> &#x1F44B;</div>
         <div class="dash-sub">Here's your health summary for today</div>
       </div>
       <div class="dash-grid">
@@ -331,6 +331,9 @@
     var el2 = document.getElementById('sidebar-patient-name');
     if (el) el.textContent = name;
     if (el2) el2.textContent = fullName;
+    // Greeting in dashboard body
+    var greetEl = document.getElementById('dash-greeting-name');
+    if (greetEl) greetEl.textContent = name;
     // Role badge
     var roleEl = document.getElementById('sidebar-role-label');
     if (roleEl) roleEl.textContent = u.role === 'hospital' ? 'Hospital' : 'Patient';
