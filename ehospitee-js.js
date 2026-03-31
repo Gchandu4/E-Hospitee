@@ -257,6 +257,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch { DB.clearSession(); window.location.href = 'ehospitee-login.html'; return; }
   }
 
+  // If already logged in and visiting login/register, redirect to dashboard
+  if ((pageId === 'page-login' || pageId === 'page-register') && currentUser) {
+    window.location.href = 'ehospitee-patient.html';
+    return;
+  }
+
   switch (pageId) {
     case 'page-landing': initRevealObserver(); initHeroTilt(); initHIWAutoPlay(); initParallax(); buildEmojiGrid(); navScrollHandler(); break;
     case 'page-patient':
@@ -343,11 +349,8 @@ async function handleRegister() {
     }
   } catch(e) {
     SecureLogger.error('register_error', { message: e.message });
-    const errMsg = e.message || 'Unknown error';
-    showToast('Registration failed: ' + errMsg);
+    showToast('Registration failed: ' + (e.message || 'Please try again'));
     console.error('Register error:', e);
-    // Show alert so error is visible without DevTools
-    alert('Registration error: ' + errMsg);
   }
   btn.textContent = 'Create Account'; btn.disabled = false;
 }
