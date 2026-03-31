@@ -349,6 +349,7 @@ async function handleRegister() {
     }
   } catch(e) {
     SecureLogger.error('register_error', { message: e.message });
+    // Show the actual Supabase error so we can debug
     showToast('Registration failed: ' + (e.message || 'Please try again'));
     console.error('Register error:', e);
   }
@@ -365,15 +366,19 @@ function switchLoginTab(type, btn) {
 
 async function handleLogin(type) {
   if (type === 'demo-patient') {
-    const user = await DB.findByEmail('patients', 'rajesh@demo.com');
-    if (user) { DB.setSession(user, 'patient'); window.location.href = 'ehospitee-patient.html'; }
-    else showToast('Demo account not found. Please register first.');
+    try {
+      const user = await DB.findByEmail('patients', 'rajesh@demo.com');
+      if (user) { DB.setSession(user, 'patient'); window.location.href = 'ehospitee-patient.html'; }
+      else showToast('Demo account not found. Please register first.');
+    } catch(e) { showToast('Login error: ' + e.message); }
     return;
   }
   if (type === 'demo-hospital') {
-    const hosp = await DB.findByEmail('hospitals', 'admin@apollo.com');
-    if (hosp) { DB.setSession(hosp, 'hospital'); window.location.href = 'ehospitee-patient.html'; }
-    else showToast('Demo account not found. Please register first.');
+    try {
+      const hosp = await DB.findByEmail('hospitals', 'admin@apollo.com');
+      if (hosp) { DB.setSession(hosp, 'hospital'); window.location.href = 'ehospitee-patient.html'; }
+      else showToast('Demo account not found. Please register first.');
+    } catch(e) { showToast('Login error: ' + e.message); }
     return;
   }
 
@@ -384,34 +389,49 @@ async function handleLogin(type) {
     const id = document.getElementById('login-id')?.value.trim() || '';
     const pw = document.getElementById('login-pw')?.value.trim() || '';
     if (!id || !pw) { showToast('Please enter your credentials'); return; }
-    const user = await DB.findByEmail('patients', id) || await DB.findByMobile('patients', id);
-    if (!user || !(await Auth.verifyPassword(pw, user.password))) {
-      RateLimit.record(); SecureLogger.warn('login_failed', { type: 'patient' }); showToast('Invalid credentials'); return;
+    try {
+      const user = await DB.findByEmail('patients', id) || await DB.findByMobile('patients', id);
+      if (!user || !(await Auth.verifyPassword(pw, user.password))) {
+        RateLimit.record();
+        showToast('Invalid credentials — check your email and password');
+        return;
+      }
+      if (Auth.isLegacyPassword(user.password)) {
+        const hashed = await Auth.hashPassword(pw);
+        await _sb.from('patients').update({ password: hashed }).eq('id', user.id);
+      }
+      RateLimit.reset();
+      DB.setSession(user, 'patient');
+      window.location.href = 'ehospitee-patient.html';
+    } catch(e) {
+      showToast('Login error: ' + e.message);
+      console.error('Login error:', e);
     }
-    if (Auth.isLegacyPassword(user.password)) {
-      const hashed = await Auth.hashPassword(pw);
-      await _sb.from('patients').update({ password: hashed }).eq('id', user.id);
-    }
-    RateLimit.reset(); SecureLogger.info('login_success', { type: 'patient' });
-    DB.setSession(user, 'patient');
-    window.location.href = 'ehospitee-patient.html';
     return;
   }
+
   if (type === 'hospital') {
     const id = document.getElementById('hosp-login-id')?.value.trim() || '';
     const pw = document.getElementById('hosp-login-pw')?.value.trim() || '';
     if (!id || !pw) { showToast('Please enter your credentials'); return; }
-    const hosp = await DB.findByEmail('hospitals', id);
-    if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
-      RateLimit.record(); SecureLogger.warn('login_failed', { type: 'hospital' }); showToast('Invalid credentials'); return;
+    try {
+      const hosp = await DB.findByEmail('hospitals', id);
+      if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
+        RateLimit.record();
+        showToast('Invalid credentials — check your email and password');
+        return;
+      }
+      if (Auth.isLegacyPassword(hosp.password)) {
+        const hashed = await Auth.hashPassword(pw);
+        await _sb.from('hospitals').update({ password: hashed }).eq('id', hosp.id);
+      }
+      RateLimit.reset();
+      DB.setSession(hosp, 'hospital');
+      window.location.href = 'ehospitee-patient.html';
+    } catch(e) {
+      showToast('Login error: ' + e.message);
+      console.error('Login error:', e);
     }
-    if (Auth.isLegacyPassword(hosp.password)) {
-      const hashed = await Auth.hashPassword(pw);
-      await _sb.from('hospitals').update({ password: hashed }).eq('id', hosp.id);
-    }
-    RateLimit.reset(); SecureLogger.info('login_success', { type: 'hospital' });
-    DB.setSession(hosp, 'hospital');
-    window.location.href = 'ehospitee-patient.html';
   }
 }
 
