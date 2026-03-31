@@ -266,11 +266,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   switch (pageId) {
     case 'page-landing': initRevealObserver(); initHeroTilt(); initHIWAutoPlay(); initParallax(); buildEmojiGrid(); navScrollHandler(); break;
     case 'page-patient':
-      _setHTML('patient-name', currentUser.firstName);
-      _setHTML('sidebar-patient-name', currentUser.firstName + ' ' + (currentUser.lastName || ''));
+      if (!currentUser) { window.location.href = 'ehospitee-login.html'; return; }
+      _setHTML('patient-name', currentUser.firstName || currentUser.name || 'User');
+      _setHTML('sidebar-patient-name', (currentUser.firstName || currentUser.name || 'User') + ' ' + (currentUser.lastName || ''));
       await loadPatientDash(currentUser);
       buildEmojiGrid(); navScrollHandler(); break;
-    case 'page-hospital': buildBedGrid(); buildEmojiGrid(); navScrollHandler(); break;
+    case 'page-hospital':
+      if (!currentUser) { window.location.href = 'ehospitee-login.html'; return; }
+      buildBedGrid(); buildEmojiGrid(); navScrollHandler(); break;
   }
 });
 
@@ -543,10 +546,13 @@ async function uploadRecord(input) {
   if (fileError) { showToast(fileError); input.value=''; return; }
   const safeName = Sanitize.filename(file.name);
   const reader = new FileReader();
+  reader.onerror = () => showToast('Failed to read file. Please try again.');
   reader.onload = async e => {
-    await DB.add('records', { patientId:currentUser.id, name:safeName, type:'upload', hospital:'Self Upload', date:new Date().toISOString().split('T')[0], fileData:e.target.result, createdAt:new Date().toISOString() });
-    renderRecords(await DB.getByIndex('records','patientId',currentUser.id));
-    showToast('Record uploaded!');
+    try {
+      await DB.add('records', { patientId:currentUser.id, name:safeName, type:'upload', hospital:'Self Upload', date:new Date().toISOString().split('T')[0], fileData:e.target.result, createdAt:new Date().toISOString() });
+      renderRecords(await DB.getByIndex('records','patientId',currentUser.id));
+      showToast('Record uploaded!');
+    } catch(err) { showToast('Upload failed: ' + err.message); }
   };
   reader.readAsDataURL(file);
 }
@@ -554,6 +560,8 @@ async function uploadRecord(input) {
 async function saveVitals() {
   if (!currentUser) return;
   const fields = { heartRate:_gval('v-hr'), bp:_gval('v-bp'), temp:_gval('v-temp'), sugar:_gval('v-sugar'), weight:_gval('v-weight'), spo2:_gval('v-spo2') };
+  const hasValue = Object.values(fields).some(v => v);
+  if (!hasValue) { showToast('Enter at least one vital sign'); return; }
   const v = { patientId:currentUser.id, heartRate:Sanitize.text(fields.heartRate)||document.getElementById('stat-heartrate')?.textContent, bp:Sanitize.text(fields.bp)||document.getElementById('stat-bp')?.textContent, temp:Sanitize.text(fields.temp)||document.getElementById('stat-temp')?.textContent, sugar:Sanitize.text(fields.sugar)||document.getElementById('stat-sugar')?.textContent, weight:Sanitize.text(fields.weight)||document.getElementById('stat-weight')?.textContent, spo2:Sanitize.text(fields.spo2)||document.getElementById('stat-spo2')?.textContent, recordedAt:new Date().toISOString() };
   await DB.add('vitals', v);
   renderVitals(v);
@@ -563,10 +571,15 @@ async function saveVitals() {
 
 async function triggerSOS() {
   if (!currentUser) return;
-  await DB.add('emergencies', { patientId:currentUser.id, type:'SOS', location:'Hyderabad', status:'dispatched', triggeredAt:new Date().toISOString() });
+  let location = 'Location unavailable';
+  try {
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 }));
+    location = `${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`;
+  } catch {}
+  await DB.add('emergencies', { patientId:currentUser.id, type:'SOS', location, status:'dispatched', triggeredAt:new Date().toISOString() });
   const logEl = document.getElementById('sos-log');
   if (logEl) {
-    logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px"><div style="font-weight:700;color:#DC2626;font-size:.88rem">SOS Triggered - ${new Date().toLocaleTimeString()}</div><div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">Family notified - 3 Hospitals alerted - Ambulance dispatched</div></div>` + logEl.innerHTML;
+    logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px"><div style="font-weight:700;color:#DC2626;font-size:.88rem">SOS Triggered - ${new Date().toLocaleTimeString()}</div><div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">Family notified - 3 Hospitals alerted - Ambulance dispatched<br>Location: ${Sanitize.html(location)}</div></div>` + logEl.innerHTML;
   }
   showToast('SOS sent! Ambulance dispatched. Family notified.');
 }
