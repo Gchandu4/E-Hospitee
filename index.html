@@ -1047,7 +1047,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 
     <!-- OVERVIEW -->
     <div class="dash-panel active" id="p-overview">
-      <div class="dash-header"><div class="dash-title">Good morning, Rajesh 👋</div><div class="dash-sub">Tuesday, 10 March 2026 · Here's your health summary</div></div>
+      <div class="dash-header"><div class="dash-title">Good morning, <span id="patient-greeting-name">...</span> &#x1F44B;</div><div class="dash-sub">Here's your health summary</div></div>
       <div class="dash-grid">
         <div class="dash-stat-card"><div class="dsc-icon">📅</div><div class="dsc-num" id="stat-upcoming">2</div><div class="dsc-lbl">Upcoming Appointments</div></div>
         <div class="dash-stat-card"><div class="dsc-icon">📋</div><div class="dsc-num" id="stat-records">5</div><div class="dsc-lbl">Health Records</div></div>
@@ -1192,8 +1192,8 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
   <div class="nav-inner">
     <a class="nav-logo" onclick="goPage('page-landing')"><div class="logo-mark">🏥</div><span class="logo-text">E-Hospi<span>tee</span></span></a>
     <div style="display:flex;align-items:center;gap:16px">
-      <div style="font-size:.85rem;color:rgba(255,255,255,.8)">Apollo Hospitals, Jubilee Hills</div>
-      <button onclick="goPage('page-landing')" style="padding:7px 16px;background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.82rem">Sign Out</button>
+      <div style="font-size:.85rem;color:rgba(255,255,255,.8)" id="hosp-nav-name">Hospital</div>
+      <button onclick="signOut()" style="padding:7px 16px;background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.82rem">Sign Out</button>
     </div>
   </div>
 </nav>
@@ -1202,7 +1202,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     <div class="sidebar-section">
       <div style="padding:12px;margin-bottom:4px">
         <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:2px">Hospital Dashboard</div>
-        <div style="font-weight:700;color:white;font-size:.92rem">Apollo Hospitals</div>
+        <div style="font-weight:700;color:white;font-size:.92rem" id="hosp-sidebar-name">Hospital</div>
       </div>
     </div>
     <div class="sidebar-section">
@@ -1227,7 +1227,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 
     <!-- OVERVIEW -->
     <div class="dash-panel active" id="h-overview">
-      <div class="dash-header"><div class="dash-title">Hospital Overview</div><div class="dash-sub">Tuesday, 10 March 2026 · Apollo Hospitals, Jubilee Hills</div></div>
+      <div class="dash-header"><div class="dash-title">Hospital Overview</div><div class="dash-sub"><span id="hosp-overview-name">Hospital</span> &mdash; Today's Summary</div></div>
       <div class="dash-grid">
         <div class="dash-stat-card hosp-stat"><div class="dsc-icon">📅</div><div class="dsc-num">48</div><div class="dsc-lbl">Today's Appointments</div></div>
         <div class="dash-stat-card hosp-stat"><div class="dsc-icon">🛏️</div><div class="dsc-num">12</div><div class="dsc-lbl">Available Beds</div></div>
@@ -2100,6 +2100,37 @@ setTimeout(()=>{
   const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:.12});
   document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 },200);
+</script>
+
+<script>
+// Set all dynamic name elements from session immediately on load
+(function() {
+  try {
+    var raw = localStorage.getItem('ehospitee_session');
+    if (!raw) return;
+    var session = JSON.parse(raw);
+    if (!session || !session.user) return;
+    var u = session.user;
+    var firstName = u.firstName || u.name || u.email || 'User';
+    var lastName  = u.lastName || '';
+    var fullName  = firstName + (lastName ? ' ' + lastName : '');
+    var role      = u.role || 'patient';
+
+    // Patient dashboard elements
+    var setEl = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('patient-name',          firstName);
+    setEl('sidebar-patient-name',  fullName);
+    setEl('patient-greeting-name', firstName);
+    setEl('dash-greeting-name',    firstName);
+
+    // Hospital dashboard elements
+    if (role === 'hospital') {
+      setEl('hosp-nav-name',      fullName);
+      setEl('hosp-sidebar-name',  fullName);
+      setEl('hosp-overview-name', fullName);
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>

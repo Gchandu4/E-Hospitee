@@ -334,6 +334,9 @@
     // Greeting in dashboard body
     var greetEl = document.getElementById('dash-greeting-name');
     if (greetEl) greetEl.textContent = name;
+    // Also set the overview panel greeting (same page, different ID)
+    var greetEl2 = document.getElementById('patient-greeting-name');
+    if (greetEl2) greetEl2.textContent = name;
     // Role badge
     var roleEl = document.getElementById('sidebar-role-label');
     if (roleEl) roleEl.textContent = u.role === 'hospital' ? 'Hospital' : 'Patient';
