@@ -1810,23 +1810,18 @@ async function loadPatientDash(user) {
   const bloodEl = document.getElementById('prof-blood');
   if (bloodEl && user.bloodGroup) bloodEl.value = user.bloodGroup;
 
-  // Load appointments
-  const appts = await DB.getByIndex('appointments', 'patientId', user.id);
-  renderAppointments(appts);
+  // Load from Supabase
+  const { data: appts } = await _sb.from('appointments').select('*').eq('patientId', user.id);
+  renderAppointments(appts || []);
 
-  // Load records
-  const recs = await DB.getByIndex('records', 'patientId', user.id);
-  recs.forEach(r => _recsCache[r.id] = r);
-  renderRecords(recs);
+  const { data: recs } = await _sb.from('records').select('*').eq('patientId', user.id);
+  if (recs) { recs.forEach(r => _recsCache[r.id] = r); renderRecords(recs); }
 
-  // Load medications
-  const meds = await DB.getByIndex('medications', 'patientId', user.id);
-  renderMedications(meds);
+  const { data: meds } = await _sb.from('medications').select('*').eq('patientId', user.id);
+  renderMedications(meds || []);
 
-  // Load vitals
-  const vitals = await DB.getAll('vitals');
-  const v = vitals.find(v => v.patientId === user.id);
-  if (v) renderVitals(v);
+  const { data: vitals } = await _sb.from('vitals').select('*').eq('patientId', user.id).order('recordedAt', { ascending: false }).limit(1);
+  if (vitals && vitals.length) renderVitals(vitals[0]);
 }
 
 function renderAppointments(appts) {
@@ -1990,11 +1985,10 @@ function renderVitals(v) {
   Object.entries(map).forEach(([id, val]) => { const el=document.getElementById(id); if(el) el.textContent = val; });
 }
 
-// ── SAVE PROFILE (DB) ──
+// ── SAVE PROFILE (Supabase) ──
 async function saveProfile() {
   if (!currentUser || currentUser.role !== 'patient') return;
   const updated = {
-    ...currentUser,
     firstName: document.getElementById('prof-fname').value,
     lastName:  document.getElementById('prof-lname').value,
     dob:       document.getElementById('prof-dob').value,
@@ -2004,48 +1998,47 @@ async function saveProfile() {
     allergies: document.getElementById('prof-allergies').value,
     emergencyContact: document.getElementById('prof-emergency').value,
   };
-  await DB.put('patients', updated);
-  DB.setSession(updated, 'patient');
+  const { error } = await _sb.from('patients').update(updated).eq('id', currentUser.id);
+  if (error) { showToast('Save failed: ' + error.message); return; }
+  DB.setSession({ ...currentUser, ...updated }, 'patient');
   document.getElementById('patient-name').textContent = updated.firstName;
   document.getElementById('sidebar-patient-name').textContent = updated.firstName + ' ' + updated.lastName;
-  showToast('✅ Profile saved to database!');
+  showToast('Profile saved!');
 }
 
-// ── ADD MEDICATION (DB) ──
+// ── ADD MEDICATION (Supabase) ──
 async function addMedication() {
   if (!currentUser) return;
   const name = document.getElementById('new-med-name').value.trim();
   const dose = document.getElementById('new-med-dose').value.trim();
   const freq = document.getElementById('new-med-freq').value.trim();
   const time = document.getElementById('new-med-time').value.trim();
-  if (!name) { showToast('⚠️ Enter medication name'); return; }
-  await DB.add('medications', { patientId: currentUser.id, name, dose, frequency: freq, time, prescribedBy:'Self', active: true, createdAt: new Date().toISOString() });
+  if (!name) { showToast('Enter medication name'); return; }
+  const { error } = await _sb.from('medications').insert({ patientId: currentUser.id, name, dose, frequency: freq, time, prescribedBy:'Self', active: true, createdAt: new Date().toISOString() });
+  if (error) { showToast('Failed: ' + error.message); return; }
   ['new-med-name','new-med-dose','new-med-freq','new-med-time'].forEach(id=>document.getElementById(id).value='');
-  const meds = await DB.getByIndex('medications', 'patientId', currentUser.id);
-  renderMedications(meds);
-  showToast('✅ Medication saved to database!');
+  const { data: meds } = await _sb.from('medications').select('*').eq('patientId', currentUser.id);
+  renderMedications(meds || []);
+  showToast('Medication saved!');
 }
 
-// ── UPLOAD RECORD (DB) ──
+// ── UPLOAD RECORD (Supabase) ──
 async function uploadRecord(input) {
   if (!currentUser || !input.files[0]) return;
   const file = input.files[0];
+  if (file.size > 5*1024*1024) { showToast('File must be under 5MB'); return; }
   const reader = new FileReader();
   reader.onload = async e => {
-    await DB.add('records', {
-      patientId: currentUser.id, name: file.name, type: 'upload',
-      hospital: 'Self Upload', date: new Date().toISOString().split('T')[0],
-      fileData: e.target.result, createdAt: new Date().toISOString()
-    });
-    const recs = await DB.getByIndex('records', 'patientId', currentUser.id);
-    recs.forEach(r => _recsCache[r.id] = r);
-    renderRecords(recs);
-    showToast('✅ Record uploaded and saved!');
+    const { error } = await _sb.from('records').insert({ patientId: currentUser.id, name: file.name, type: 'upload', hospital: 'Self Upload', date: new Date().toISOString().split('T')[0], fileData: e.target.result, createdAt: new Date().toISOString() });
+    if (error) { showToast('Upload failed: ' + error.message); return; }
+    const { data: recs } = await _sb.from('records').select('*').eq('patientId', currentUser.id);
+    if (recs) { recs.forEach(r => _recsCache[r.id] = r); renderRecords(recs); }
+    showToast('Record uploaded!');
   };
   reader.readAsDataURL(file);
 }
 
-// ── SAVE VITALS (DB) ──
+// ── SAVE VITALS (Supabase) ──
 async function saveVitals() {
   if (!currentUser) return;
   const v = {
@@ -2058,24 +2051,46 @@ async function saveVitals() {
     spo2:      document.getElementById('v-spo2').value || document.getElementById('stat-spo2').textContent,
     recordedAt: new Date().toISOString()
   };
-  await DB.add('vitals', v);
+  const { error } = await _sb.from('vitals').insert(v);
+  if (error) { showToast('Failed: ' + error.message); return; }
   renderVitals(v);
   ['v-hr','v-bp','v-temp','v-sugar','v-weight','v-spo2'].forEach(id=>document.getElementById(id).value='');
-  showToast('✅ Vitals saved to database!');
+  showToast('Vitals saved!');
 }
 
-// ── SOS (DB) ──
+// ── SOS (Supabase) ──
 async function triggerSOS() {
-  const log = { patientId: currentUser?.id||0, type:'SOS', location:'Hyderabad', status:'dispatched', triggeredAt: new Date().toISOString() };
-  await DB.add('emergencies', log);
+  if (!currentUser) { showToast('Please sign in first'); return; }
+  let location = 'Location unavailable';
+  try {
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 }));
+    location = pos.coords.latitude.toFixed(4) + ',' + pos.coords.longitude.toFixed(4);
+  } catch {}
+  await _sb.from('emergencies').insert({ patientId: currentUser.id, type:'SOS', location, status:'dispatched', triggeredAt: new Date().toISOString() });
   const logEl = document.getElementById('sos-log');
   if (logEl) {
     logEl.innerHTML = `<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px;margin-bottom:10px">
-      <div style="font-weight:700;color:#DC2626;font-size:.88rem">🚨 SOS Triggered — ${new Date().toLocaleTimeString()}</div>
-      <div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">✅ Family notified &nbsp;·&nbsp; ✅ 3 Hospitals alerted &nbsp;·&nbsp; ✅ Ambulance dispatched<br>📍 Location shared automatically</div>
+      <div style="font-weight:700;color:#DC2626;font-size:.88rem">SOS Triggered — ${new Date().toLocaleTimeString()}</div>
+      <div style="font-size:.78rem;color:var(--ink-light);margin-top:6px">Family notified · 3 Hospitals alerted · Ambulance dispatched<br>Location: ${location}</div>
     </div>` + logEl.innerHTML;
   }
-  showToast('🚨 SOS sent! Ambulance dispatched. Family notified.');
+  showToast('SOS sent! Ambulance dispatched. Family notified.');
+}
+
+// ── BOOK APPOINTMENT (Supabase) ──
+async function bookAppointment(doctor, specialty, hospital, fee) {
+  if (!currentUser) { showToast('Please sign in first'); goPage('page-login'); return; }
+  const date = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const { error } = await _sb.from('appointments').insert({
+    patientId: currentUser.id, doctor, specialty, hospital,
+    date, time: '10:30 AM', status: 'upcoming', fee,
+    createdAt: new Date().toISOString()
+  });
+  if (error) { showToast('Booking failed: ' + error.message); return; }
+  showToast('Appointment booked with ' + doctor + '!');
+  // Refresh appointments
+  const { data: appts } = await _sb.from('appointments').select('*').eq('patientId', currentUser.id);
+  if (appts) renderAppointments(appts);
 }
 
 // ── SIGN OUT ──
