@@ -3,21 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<!-- Content Security Policy: restrict resource origins -->
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com;
-  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;
-  font-src 'self' https://fonts.gstatic.com;
-  connect-src 'self' https://*.supabase.co https://fonts.googleapis.com;
-  img-src 'self' data: blob:;
-  frame-ancestors 'none';
-"/>
-<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
-<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
 <title>E-Hospitee — Hospital & Patient Management Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;font-size:16px}
@@ -281,8 +268,7 @@ nav.scrolled{box-shadow:var(--shadow-md)}
 .feature-card:hover .fc-icon{transform:translateZ(16px) rotateY(-10deg) scale(1.1)}
 .fc-title{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--ink);margin-bottom:10px}
 .fc-desc{font-size:.88rem;color:var(--ink-light);line-height:1.75}
-.fc-tag{display:none}
-
+.fc-tag{display:inline-block;margin-top:16px;font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:4px 12px;border-radius:100px;background:var(--teal-pale);color:var(--teal);border:1px solid var(--border-teal)}
 
 /* ── EMERGENCY ── */
 .emergency-section{background:linear-gradient(135deg,var(--teal-dark),var(--teal) 50%,var(--teal-mid));padding:96px 32px;position:relative;overflow:hidden}
@@ -398,7 +384,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 .fw-card:hover .fw-icon{transform:translateZ(20px) scale(1.15) rotateY(-15deg)}
 .fw-title{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;color:var(--ink);margin-bottom:8px}
 .fw-desc{font-size:.85rem;color:var(--ink-light);line-height:1.7}
-.fw-badge{display:none}
+.fw-badge{display:inline-block;margin-top:12px;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 10px;border-radius:100px;background:var(--teal-pale);color:var(--teal);border:1px solid var(--border-teal)}
 
 /* ── WHATSAPP ── */
 .wa-fab{position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
@@ -513,6 +499,41 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 <body>
 
 <div id="toast" class="toast"></div>
+
+<!-- ── RECORD VIEWER MODAL ── -->
+<div id="record-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--white);border-radius:20px;width:100%;max-width:780px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border)">
+      <div style="font-weight:700;font-size:1rem;color:var(--ink)" id="modal-title">Record</div>
+      <button onclick="closeRecordModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink-light);line-height:1">×</button>
+    </div>
+    <div id="modal-body" style="flex:1;overflow:auto;padding:24px;text-align:center"></div>
+    <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button id="modal-download-btn" class="btn-secondary" style="padding:9px 20px;font-size:.88rem">⬇ Download</button>
+      <button onclick="closeRecordModal()" class="btn-primary" style="padding:9px 20px;font-size:.88rem">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RECORD EDIT MODAL ── -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--white);border-radius:20px;width:100%;max-width:440px;box-shadow:0 24px 64px rgba(0,0,0,.3);padding:32px">
+    <div style="font-weight:700;font-size:1rem;color:var(--ink);margin-bottom:20px">Edit Record</div>
+    <input type="hidden" id="edit-rec-id"/>
+    <div class="form-group"><label class="form-label">Record Name</label><input class="form-control" id="edit-rec-name"/></div>
+    <div class="form-group"><label class="form-label">Type</label>
+      <select class="form-control" id="edit-rec-type">
+        <option value="upload">Upload</option><option value="lab">Lab Report</option>
+        <option value="prescription">Prescription</option><option value="report">Report</option><option value="summary">Summary</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Hospital / Source</label><input class="form-control" id="edit-rec-hospital"/></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button onclick="saveEditRecord()" class="form-btn" style="margin-top:0">Save</button>
+      <button onclick="closeEditModal()" class="btn-secondary" style="padding:12px 20px">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── WHATSAPP FLOATING BUTTON + CHAT ── -->
 <div class="wa-fab" id="waFab">
@@ -758,7 +779,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
         <div class="hiw-step active" onclick="setStep(0,this)"><div class="step-num">1</div><div><div class="step-title">Patient searches for a specialist</div><div class="step-desc">Filter by specialty, location, and real-time availability.</div></div></div>
         <div class="hiw-step" onclick="setStep(1,this)"><div class="step-num">2</div><div><div class="step-title">Books appointment — instantly confirmed</div><div class="step-desc">Select a slot, confirm, and receive a booking reference with reminders.</div></div></div>
         <div class="hiw-step" onclick="setStep(2,this)"><div class="step-num">3</div><div><div class="step-title">Hospital manages the booking</div><div class="step-desc">Live calendar with patient details before arrival.</div></div></div>
-        <div class="hiw-step" onclick="setStep(3,this)"><div class="step-num">4</div><div><div class="step-title">Doctor issues digital prescription</div><div class="step-desc">Pushed directly to patient's app. No paper.</div></div></div>
+        <div class="hiw-step" onclick="setStep(3,this)"><div class="step-num">4</div><div><div class="step-title">Doctor issues physical prescription</div><div class="step-desc">Pushed directly to patient's app. No paper.</div></div></div>
         <div class="hiw-step" onclick="setStep(4,this)"><div class="step-num">5</div><div><div class="step-title">Automatic follow-up reminders</div><div class="step-desc">Medication and appointment reminders daily.</div></div></div>
       </div>
       <div class="hiw-visual">
@@ -952,8 +973,6 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
       <div class="form-group"><label class="form-label">Password</label><input class="form-control" type="password" placeholder="Create a strong password"/></div>
     </div>
 
-    <!-- Honeypot: hidden field to catch bots — must remain empty -->
-    <input type="text" id="reg-honeypot" name="website" style="display:none" tabindex="-1" autocomplete="off"/>
     <button class="form-btn" id="reg-btn" onclick="handleRegister()">Create Account →</button>
     <div class="auth-switch">Already have an account? <a onclick="goPage('page-login')">Sign in here</a></div>
   </div>
@@ -982,10 +1001,10 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     </div>
 
     <div id="login-patient">
-      <div class="form-group"><label class="form-label">Mobile Number or Email</label><input class="form-control" type="text" placeholder="+91 98765 43210" id="login-id"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-control" type="email" placeholder="you@email.com" id="login-id"/></div>
       <div class="form-group"><label class="form-label">Password</label><input class="form-control" type="password" placeholder="Enter your password" id="login-pw"/></div>
       <div style="text-align:right;margin-bottom:16px"><a style="font-size:.82rem;color:var(--teal);font-weight:600;cursor:pointer">Forgot password?</a></div>
-      <button class="form-btn" onclick="handleLogin('patient')">Sign In as Patient →</button>
+      <button class="form-btn" id="patient-login-btn" onclick="this.style.opacity='0.7';this.textContent='Opening…';handleLogin('patient')">Sign In as Patient →</button>
     </div>
 
     <div id="login-hospital" style="display:none">
@@ -995,10 +1014,6 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
       <button class="form-btn" onclick="handleLogin('hospital')">Sign In as Hospital →</button>
     </div>
 
-    <div class="auth-divider">or</div>
-    <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-patient')">🎯 Try Patient Demo</button>
-    <div style="height:10px"></div>
-    <button class="btn-secondary" style="width:100%;justify-content:center;padding:12px" onclick="handleLogin('demo-hospital')">🏥 Try Hospital Demo</button>
     <div class="auth-switch">Don't have an account? <a onclick="goPage('page-register')">Sign up here</a></div>
   </div>
 </div>
@@ -1010,9 +1025,9 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 <div id="page-patient" class="page">
 <nav id="patient-nav" style="position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)">
   <div class="nav-inner" style="max-width:100%;padding:0 28px">
-    <a class="nav-logo" onclick="goPage('page-landing')"><div class="logo-mark">🏥</div><span class="logo-text">E-Hospi<span>tee</span></span></a>
+    <a class="nav-logo" style="cursor:default"><div class="logo-mark">🏥</div><span class="logo-text">E-Hospi<span>tee</span></span></a>
     <div style="display:flex;align-items:center;gap:16px">
-      <div style="font-size:.85rem;color:var(--ink-mid)">Welcome, <strong id="patient-name">Rajesh</strong> 👋</div>
+      <div style="font-size:.85rem;color:var(--ink-mid)">Welcome, <strong id="patient-name"></strong> 👋</div>
       <button onclick="goPage('page-landing')" class="nav-btn-outline" style="padding:7px 16px!important;font-size:.82rem!important;background:transparent;color:var(--teal);border:1.5px solid var(--teal);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">Sign Out</button>
     </div>
   </div>
@@ -1022,13 +1037,13 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     <div class="sidebar-section">
       <div style="padding:12px 12px 4px;display:flex;align-items:center;gap:10px">
         <div style="width:40px;height:40px;border-radius:50%;background:var(--teal-pale);border:2px solid var(--border-teal);display:flex;align-items:center;justify-content:center;font-size:1.1rem">👤</div>
-        <div><div style="font-weight:600;font-size:.85rem" id="sidebar-patient-name">Rajesh Kumar</div><div style="font-size:.72rem;color:var(--ink-light)">Patient ID: P-2024-001</div></div>
+        <div><div style="font-weight:600;font-size:.85rem" id="sidebar-patient-name"></div><div style="font-size:.72rem;color:var(--ink-light)" id="sidebar-patient-id">—</div></div>
       </div>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Main</div>
       <button class="sidebar-item active" onclick="showPanel('p-overview',this)"><span class="si-icon">🏠</span> Overview</button>
-      <button class="sidebar-item" onclick="showPanel('p-appointments',this)"><span class="si-icon">📅</span> Appointments <span class="sidebar-badge">2</span></button>
+      <button class="sidebar-item" onclick="showPanel('p-appointments',this)"><span class="si-icon">📅</span> Appointments <span class="sidebar-badge" id="appt-badge" style="display:none"></span></button>
       <button class="sidebar-item" onclick="showPanel('p-records',this)"><span class="si-icon">📋</span> Health Records</button>
       <button class="sidebar-item" onclick="showPanel('p-medications',this)"><span class="si-icon">💊</span> Medications</button>
       <button class="sidebar-item" onclick="showPanel('p-book',this)"><span class="si-icon">🔍</span> Book Appointment</button>
@@ -1047,21 +1062,21 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 
     <!-- OVERVIEW -->
     <div class="dash-panel active" id="p-overview">
-      <div class="dash-header"><div class="dash-title">Good morning, <span id="patient-greeting-name">...</span> &#x1F44B;</div><div class="dash-sub">Here's your health summary</div></div>
+      <div class="dash-header"><div class="dash-title"></div><div class="dash-sub">Tuesday, 10 March 2026 · Here's your health summary</div></div>
       <div class="dash-grid">
-        <div class="dash-stat-card"><div class="dsc-icon">📅</div><div class="dsc-num" id="stat-upcoming">2</div><div class="dsc-lbl">Upcoming Appointments</div></div>
-        <div class="dash-stat-card"><div class="dsc-icon">📋</div><div class="dsc-num" id="stat-records">5</div><div class="dsc-lbl">Health Records</div></div>
-        <div class="dash-stat-card"><div class="dsc-icon">💊</div><div class="dsc-num" id="stat-meds">3</div><div class="dsc-lbl">Active Medications</div></div>
-        <div class="dash-stat-card"><div class="dsc-icon">🩺</div><div class="dsc-num">12</div><div class="dsc-lbl">Total Visits</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">📅</div><div class="dsc-num" id="stat-upcoming">0</div><div class="dsc-lbl">Upcoming Appointments</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">📋</div><div class="dsc-num" id="stat-records">0</div><div class="dsc-lbl">Health Records</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">💊</div><div class="dsc-num" id="stat-meds">0</div><div class="dsc-lbl">Active Medications</div></div>
+        <div class="dash-stat-card"><div class="dsc-icon">🩺</div><div class="dsc-num">0</div><div class="dsc-lbl">Total Visits</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
         <div class="dash-card">
           <div class="dash-card-title">Upcoming Appointments <a onclick="showPanel('p-appointments',null)">View All</a></div>
-          <div id="overview-upcoming"><div class="appt-row"><div class="appt-avatar2">🫀</div><div class="appt-info"><div class="appt-doc">Dr. S. Rao — Cardiology</div><div class="appt-spec">Apollo Hospitals · 2026-03-12 · 10:30 AM</div></div><span class="status-badge status-upcoming">Upcoming</span></div></div>
+          <div id="overview-upcoming"></div>
         </div>
         <div class="dash-card">
           <div class="dash-card-title">Today's Medications</div>
-          <div id="overview-meds"><div class="med-item"><div class="med-icon">💊</div><div><div class="med-name">Ecosprin 75mg</div><div class="med-dose">1 tablet — after breakfast</div></div><div class="med-time">8:00 AM</div></div></div>
+          <div id="overview-meds"></div>
         </div>
       </div>
       <div class="dash-card" style="margin-top:0">
@@ -1170,12 +1185,12 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
       <div class="dash-header"><div class="dash-title">My Profile</div><div class="dash-sub">Manage your personal and medical information</div></div>
       <div class="dash-card" id="profile-form-section">
         <div class="dash-card-title">Personal Information</div>
-        <div class="form-row"><div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="prof-fname" value="Rajesh"/></div><div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="prof-lname" value="Kumar"/></div></div>
-        <div class="form-row"><div class="form-group"><label class="form-label">Date of Birth</label><input class="form-control" type="date" id="prof-dob" value="1985-06-15"/></div><div class="form-group"><label class="form-label">Blood Group</label><select class="form-control" id="prof-blood"><option>B+</option><option>A+</option><option>O+</option><option>AB+</option></select></div></div>
-        <div class="form-group"><label class="form-label">Mobile</label><input class="form-control" id="prof-mobile" value="+91 98765 43210"/></div>
-        <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="prof-email" value="rajesh@demo.com"/></div>
-        <div class="form-group"><label class="form-label">Known Allergies</label><input class="form-control" id="prof-allergies" value="Penicillin"/></div>
-        <div class="form-group"><label class="form-label">Emergency Contact</label><input class="form-control" id="prof-emergency" value="Priya Kumar — +91 98765 12345"/></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="prof-fname" value=""/></div><div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="prof-lname" value=""/></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Date of Birth</label><input class="form-control" type="date" id="prof-dob" value=""/></div><div class="form-group"><label class="form-label">Blood Group</label><select class="form-control" id="prof-blood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div></div>
+        <div class="form-group"><label class="form-label">Mobile</label><input class="form-control" id="prof-mobile" value=""/></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="prof-email" value=""/></div>
+        <div class="form-group"><label class="form-label">Known Allergies</label><input class="form-control" id="prof-allergies" value=""/></div>
+        <div class="form-group"><label class="form-label">Emergency Contact</label><input class="form-control" id="prof-emergency" value=""/></div>
         <button class="form-btn" style="width:auto;padding:12px 28px" onclick="saveProfile()">💾 Save to Database</button>
       </div>
     </div>
@@ -1397,13 +1412,6 @@ function selectRole(r){
   document.getElementById('reg-patient-form').style.display=r==='patient'?'block':'none';
   document.getElementById('reg-hospital-form').style.display=r==='hospital'?'block':'none';
 }
-function handleRegister(){
-  showToast('Account created! Redirecting to dashboard...');
-  setTimeout(()=>{
-    if(selectedRole==='hospital') goPage('page-hospital');
-    else goPage('page-patient');
-  },1200);
-}
 
 // ── LOGIN ──
 function switchLoginTab(type,btn){
@@ -1411,13 +1419,6 @@ function switchLoginTab(type,btn){
   btn.classList.add('active');
   document.getElementById('login-patient').style.display=type==='patient'?'block':'none';
   document.getElementById('login-hospital').style.display=type==='hospital'?'block':'none';
-}
-function handleLogin(type){
-  showToast('Signing you in...');
-  setTimeout(()=>{
-    if(type==='hospital'||type==='demo-hospital') goPage('page-hospital');
-    else goPage('page-patient');
-  },900);
 }
 
 // ── PATIENT DASHBOARD PANELS ──
@@ -1506,177 +1507,120 @@ window.addEventListener('scroll',()=>{
 });
 
 // ══════════════════════════════════════
-// E-HOSPITEE DATABASE (Supabase)
+// E-HOSPITEE DATABASE (IndexedDB + localStorage)
 // ══════════════════════════════════════
-// The anon key is safe to expose in frontend — security is enforced via Supabase Row Level Security (RLS)
-const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// ── SECURITY: Password hashing via Web Crypto API ──
-const Auth = {
-  async hashPassword(password) {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2,'0')).join('');
-    const data = new TextEncoder().encode(saltHex + password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
-    return `${saltHex}:${hashHex}`;
-  },
-  async verifyPassword(password, stored) {
-    if (!stored) return false;
-    if (!stored.includes(':')) return stored === password; // legacy plaintext
-    const [saltHex, storedHash] = stored.split(':');
-    if (!saltHex || !storedHash) return false;
-    const data = new TextEncoder().encode(saltHex + password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
-    return hashHex === storedHash;
-  },
-  isLegacyPassword(stored) { return stored && !stored.includes(':'); },
-  validatePassword(password) {
-    if (password.length < 8) return 'Password must be at least 8 characters';
-    if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
-    if (!/[0-9]/.test(password)) return 'Password must contain a number';
-    return null;
-  }
-};
-
-// ── SECURITY: Rate limiting ──
-const RateLimit = {
-  _key: 'ehospitee_login_attempts',
-  _max: 5,
-  _windowMs: 15 * 60 * 1000,
-  _getState() {
-    const raw = localStorage.getItem(this._key);
-    return raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() };
-  },
-  check() {
-    const state = this._getState();
-    const now = Date.now();
-    if (now - state.firstAttempt > this._windowMs) { localStorage.removeItem(this._key); return { allowed: true }; }
-    if (state.count >= this._max) {
-      const remaining = Math.ceil((this._windowMs - (now - state.firstAttempt)) / 60000);
-      return { allowed: false, remaining };
-    }
-    return { allowed: true };
-  },
-  record() {
-    const state = this._getState();
-    const now = Date.now();
-    if (now - state.firstAttempt > this._windowMs) {
-      localStorage.setItem(this._key, JSON.stringify({ count: 1, firstAttempt: now }));
-    } else {
-      localStorage.setItem(this._key, JSON.stringify({ count: state.count + 1, firstAttempt: state.firstAttempt }));
-    }
-  },
-  reset() { localStorage.removeItem(this._key); }
-};
-
 const DB = {
   _prefix: 'ehospitee_',
-  _sessionTTL: 8 * 60 * 60 * 1000, // 8 hours
-  _patientTables: new Set(['appointments','records','medications','vitals','emergencies']),
+  _idb: null,
 
   async init() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('EHospiteeDB', 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        ['patients','hospitals','appointments','records','medications','vitals','emergencies','messages'].forEach(store => {
+          if (!db.objectStoreNames.contains(store)) {
+            const s = db.createObjectStore(store, { keyPath: 'id', autoIncrement: true });
+            if (store === 'patients') s.createIndex('email', 'email', { unique: true });
+            if (store === 'hospitals') s.createIndex('email', 'email', { unique: true });
+            if (store === 'appointments') s.createIndex('patientId', 'patientId', { unique: false });
+            if (store === 'records') s.createIndex('patientId', 'patientId', { unique: false });
+            if (store === 'medications') s.createIndex('patientId', 'patientId', { unique: false });
+          }
+        });
+      };
+      req.onsuccess = e => { this._idb = e.target.result; this._seedData(); res(); };
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async _seedData() {
     await this._loadSession();
   },
 
   async _loadSession() {
-    const raw = localStorage.getItem(this._prefix + 'session');
-    if (!raw) return;
-    try {
-      const session = JSON.parse(raw);
-      if (!session.expiresAt || Date.now() > session.expiresAt) { this.clearSession(); return; }
-      currentUser = session.user;
-    } catch { this.clearSession(); }
+    const s = localStorage.getItem(this._prefix + 'session');
+    if (s) {
+      const session = JSON.parse(s);
+      currentUser = session;
+    }
   },
 
-  /* ── Core CRUD with IDOR protection ── */
-  async add(table, data) {
-    if (this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      if (data.patientId !== currentUser.id) throw new Error('Access denied: cannot write to another user\'s data');
-    }
-    const { data: row, error } = await _sb.from(table).insert(data).select().single();
-    if (error) throw error;
-    return row;
-  },
-  async get(table, id) {
-    const query = _sb.from(table).select('*').eq('id', id);
-    if (this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      query.eq('patientId', currentUser.id);
-    }
-    const { data, error } = await query.single();
-    if (error) throw error;
-    return data;
-  },
-  async getAll(table) {
-    if (this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      const { data, error } = await _sb.from(table).select('*').eq('patientId', currentUser.id);
-      if (error) throw error;
-      return data || [];
-    }
-    const { data, error } = await _sb.from(table).select('*');
-    if (error) throw error;
-    return data || [];
-  },
-  async put(table, data) {
-    let query = _sb.from(table).update(data).eq('id', data.id);
-    if (this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      if (data.patientId !== currentUser.id) throw new Error('Access denied: cannot modify another user\'s data');
-      query = query.eq('patientId', currentUser.id);
-    }
-    const { data: row, error } = await query.select().single();
-    if (error) throw error;
-    return row;
-  },
-  async delete(table, id) {
-    let query = _sb.from(table).delete().eq('id', id);
-    if (this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      query = query.eq('patientId', currentUser.id);
-    }
-    const { error } = await query;
-    if (error) throw error;
-  },
-  async count(table) {
-    const { count, error } = await _sb.from(table).select('*', { count: 'exact', head: true });
-    if (error) throw error;
-    return count || 0;
-  },
-  async getByIndex(table, col, val) {
-    if (col === 'patientId' && this._patientTables.has(table)) {
-      if (!currentUser) throw new Error('Not authenticated');
-      if (val !== currentUser.id) throw new Error('Access denied: cannot access another user\'s data');
-    }
-    const { data, error } = await _sb.from(table).select('*').eq(col, val);
-    if (error) throw error;
-    return data || [];
-  },
-  async findByEmail(table, email) {
-    const { data, error } = await _sb.from(table).select('*').eq('email', email).maybeSingle();
-    if (error) throw error;
-    return data || null;
-  },
-  async findByMobile(table, mobile) {
-    const { data, error } = await _sb.from(table).select('*').eq('mobile', mobile).maybeSingle();
-    if (error) throw error;
-    return data || null;
+  // Core CRUD
+  async add(store, data) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).add(data);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
   },
 
-  /* ── Session ── */
+  async get(store, id) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readonly');
+      const req = tx.objectStore(store).get(id);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async getAll(store) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readonly');
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async getByIndex(store, index, value) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readonly');
+      const req = tx.objectStore(store).index(index).getAll(value);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async put(store, data) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).put(data);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async delete(store, id) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).delete(id);
+      req.onsuccess = () => res();
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async count(store) {
+    return new Promise((res, rej) => {
+      const tx = this._idb.transaction(store, 'readonly');
+      const req = tx.objectStore(store).count();
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  },
+
+  async findByEmail(store, email) {
+    const all = await this.getAll(store);
+    return all.find(r => r.email === email) || null;
+  },
+
+  // Session
   setSession(user, role) {
-    const { password: _omit, ...safeUser } = user;
-    currentUser = { ...safeUser, role };
-    localStorage.setItem(this._prefix + 'session', JSON.stringify({
-      user: currentUser,
-      expiresAt: Date.now() + this._sessionTTL
-    }));
+    currentUser = { ...user, role };
+    localStorage.setItem(this._prefix + 'session', JSON.stringify(currentUser));
   },
+
   clearSession() {
     currentUser = null;
     localStorage.removeItem(this._prefix + 'session');
@@ -1700,29 +1644,40 @@ async function handleRegister() {
       const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
       if (!firstName || !email || !password) { showToast('⚠️ Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
       if (password !== confirmPw) { showToast('⚠️ Passwords do not match'); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('⚠️ ' + pwError); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      const existing = await DB.findByEmail('patients', email);
-      if (existing) { showToast('⚠️ Email already registered'); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      const hashedPassword = await Auth.hashPassword(password);
-      const user = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password: hashedPassword, allergies:'', emergencyContact:'', createdAt: new Date().toISOString() });
+
+      // Save to server (PostgreSQL)
+      const res = await fetch('/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, mobile, email, dob, bloodGroup, password, role: 'patient' })
+      });
+      const data = await res.json();
+      if (!data.success) { showToast('⚠️ ' + data.error); btn.textContent='Create Account →'; btn.disabled=false; return; }
+
+      // Also save locally for dashboard data
+      const id = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password, allergies:'', emergencyContact:'', serverId: data.user.id, createdAt: new Date().toISOString() });
+      const user = await DB.get('patients', id);
       DB.setSession(user, 'patient');
-      document.getElementById('patient-name').textContent = firstName;
-      document.getElementById('sidebar-patient-name').textContent = firstName + ' ' + lastName;
       showToast('✅ Account created successfully!');
-      setTimeout(() => goPage('page-patient'), 800);
+      goPage('page-patient');
+      loadPatientDash(user);
 
     } else {
       const inputs = document.querySelectorAll('#reg-hospital-form input');
       const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
       if (!name || !email || !password) { showToast('⚠️ Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      const pwError = Auth.validatePassword(password);
-      if (pwError) { showToast('⚠️ ' + pwError); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      const existing = await DB.findByEmail('hospitals', email);
-      if (existing) { showToast('⚠️ Email already registered'); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      const hashedPassword = await Auth.hashPassword(password);
-      const hosp = await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password: hashedPassword, createdAt: new Date().toISOString() });
-      DB.setSession(hosp, 'hospital');
+
+      // Save to server (PostgreSQL)
+      const res = await fetch('/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName: name, email, mobile: phone, password, role: 'hospital' })
+      });
+      const data = await res.json();
+      if (!data.success) { showToast('⚠️ ' + data.error); btn.textContent='Create Account →'; btn.disabled=false; return; }
+
+      await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password, createdAt: new Date().toISOString() });
+      DB.setSession({ name, email }, 'hospital');
       showToast('✅ Hospital account created!');
       setTimeout(() => goPage('page-hospital'), 800);
     }
@@ -1734,58 +1689,69 @@ async function handleRegister() {
 }
 
 // ── LOGIN (DB-connected) ──
-async function handleLogin(type) {
-  if (type === 'demo-patient') {
-    const user = await DB.findByEmail('patients', 'rajesh@demo.com');
-    if (user) { DB.setSession(user, 'patient'); await loadPatientDash(user); goPage('page-patient'); return; }
-  }
-  if (type === 'demo-hospital') {
-    const hosp = await DB.findByEmail('hospitals', 'admin@apollo.com');
-    if (hosp) { DB.setSession(hosp, 'hospital'); goPage('page-hospital'); return; }
-  }
-
-  // Rate limit check
-  const limit = RateLimit.check();
-  if (!limit.allowed) { showToast(`⚠️ Too many attempts. Try again in ${limit.remaining} min.`); return; }
-
+function handleLogin(type) {
   if (type === 'patient') {
-    const id = document.getElementById('login-id').value.trim();
-    const pw = document.getElementById('login-pw').value.trim();
-    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
-    const user = await DB.findByEmail('patients', id) ||
-      await DB.findByMobile('patients', id);
-    if (!user || !(await Auth.verifyPassword(pw, user.password))) {
-      RateLimit.record();
-      showToast('⚠️ Invalid credentials');
-      return;
-    }
-    RateLimit.reset();
-    if (Auth.isLegacyPassword(user.password)) {
-      const hashed = await Auth.hashPassword(pw);
-      await _sb.from('patients').update({ password: hashed }).eq('id', user.id);
-    }
-    DB.setSession(user, 'patient');
-    await loadPatientDash(user);
-    goPage('page-patient');
+    const email = document.getElementById('login-id').value.trim();
+    const password = document.getElementById('login-pw').value.trim();
+    if (!email || !password) { showToast('⚠️ Enter email and password'); return; }
+
+    const btn = document.getElementById('patient-login-btn');
+    btn.style.opacity = '0.7'; btn.textContent = 'Signing in…';
+
+    fetch('/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.style.opacity = '1'; btn.textContent = 'Sign In as Patient →';
+      if (!data.success) {
+        showToast('⚠️ Invalid email or password');
+        return;
+      }
+      const user = {
+        id: data.user.id,
+        firstName: data.user.first_name,
+        lastName: data.user.last_name,
+        email: data.user.email,
+        mobile: data.user.mobile || '',
+        dob: data.user.dob || '',
+        bloodGroup: data.user.blood_group || '',
+        patientId: data.user.patient_id || '',
+        allergies: '', emergencyContact: ''
+      };
+      DB.setSession(user, 'patient');
+      goPage('page-patient');
+      loadPatientDash(user);
+    })
+    .catch(e => {
+      btn.style.opacity = '1'; btn.textContent = 'Sign In as Patient →';
+      showToast('⚠️ Login failed. Try again.');
+      console.error(e);
+    });
     return;
   }
   if (type === 'hospital') {
-    const id = document.getElementById('hosp-login-id').value.trim();
-    const pw = document.getElementById('hosp-login-pw').value.trim();
-    if (!id || !pw) { showToast('⚠️ Please enter your credentials'); return; }
-    const hosp = await DB.findByEmail('hospitals', id);
-    if (!hosp || !(await Auth.verifyPassword(pw, hosp.password))) {
-      RateLimit.record();
-      showToast('⚠️ Invalid credentials');
-      return;
-    }
-    RateLimit.reset();
-    if (Auth.isLegacyPassword(hosp.password)) {
-      const hashed = await Auth.hashPassword(pw);
-      await _sb.from('hospitals').update({ password: hashed }).eq('id', hosp.id);
-    }
-    DB.setSession(hosp, 'hospital');
-    goPage('page-hospital');
+    const email = document.getElementById('hosp-login-id').value.trim();
+    const password = document.getElementById('hosp-login-pw').value.trim();
+    if (!email || !password) { showToast('⚠️ Enter email and password'); return; }
+
+    fetch('/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) { showToast('⚠️ ' + data.error); return; }
+      DB.setSession({ name: data.user.first_name, email: data.user.email }, 'hospital');
+      goPage('page-hospital');
+    })
+    .catch(e => {
+      showToast('⚠️ Login failed. Try again.');
+      console.error(e);
+    });
     return;
   }
 }
@@ -1793,6 +1759,34 @@ async function handleLogin(type) {
 async function loadPatientDash(user) {
   document.getElementById('patient-name').textContent = user.firstName;
   document.getElementById('sidebar-patient-name').textContent = user.firstName + ' ' + (user.lastName||'');
+  const pidEl = document.getElementById('sidebar-patient-id');
+  if (pidEl) pidEl.textContent = user.patientId || '—';
+  const now = new Date();
+  const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const h = istDate.getHours();
+  const greetWord = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const greet = document.getElementById('dash-greeting');
+  if (greet) greet.textContent = greetWord + ', ' + user.firstName;
+  const dateSub = document.getElementById('dash-date-sub');
+  if (dateSub) {
+    const dateStr = istDate.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'Asia/Kolkata' });
+    dateSub.textContent = dateStr + ' · Here\'s your health summary';
+  }
+
+  // Skip DB queries for optimistic/temp login — real data loads when server responds
+  if (!user.id) return;
+
+  // Populate profile form with user's data
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('prof-fname', user.firstName);
+  setVal('prof-lname', user.lastName);
+  setVal('prof-dob', user.dob);
+  setVal('prof-mobile', user.mobile);
+  setVal('prof-email', user.email);
+  setVal('prof-allergies', user.allergies);
+  setVal('prof-emergency', user.emergencyContact);
+  const bloodEl = document.getElementById('prof-blood');
+  if (bloodEl && user.bloodGroup) bloodEl.value = user.bloodGroup;
 
   // Load appointments
   const appts = await DB.getByIndex('appointments', 'patientId', user.id);
@@ -1800,6 +1794,7 @@ async function loadPatientDash(user) {
 
   // Load records
   const recs = await DB.getByIndex('records', 'patientId', user.id);
+  recs.forEach(r => _recsCache[r.id] = r);
   renderRecords(recs);
 
   // Load medications
@@ -1847,15 +1842,21 @@ function renderAppointments(appts) {
   // Stat count
   const statEl = document.getElementById('stat-upcoming');
   if (statEl) statEl.textContent = upcoming.length;
+  const badge = document.getElementById('appt-badge');
+  if (badge) { badge.textContent = upcoming.length; badge.style.display = upcoming.length ? '' : 'none'; }
 }
 
 function renderRecords(recs) {
-  const icons = { lab:'🧪', prescription:'🩺', report:'📄', summary:'📋' };
+  const icons = { lab:'🧪', prescription:'🩺', report:'📄', summary:'📋', upload:'📎' };
   const html = recs.length ? recs.map(r => `
-    <div class="record-item">
+    <div class="record-item" id="rec-${r.id}">
       <div class="record-icon">${icons[r.type]||'📄'}</div>
-      <div><div class="record-name">${r.name}</div><div class="record-date">${r.hospital} · ${r.date}</div></div>
-      <button class="record-btn" onclick="showToast('Opening ${r.name}...')">View</button>
+      <div style="flex:1"><div class="record-name">${r.name}</div><div class="record-date">${r.hospital} · ${r.date}</div></div>
+      <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
+        ${r.fileData ? `<button class="record-btn" onclick="viewRecord(${r.id})">👁 View</button>` : `<span style="font-size:.72rem;color:var(--ink-light);padding:5px 8px">No file</span>`}
+        <button class="record-btn" style="background:#EFF6FF;color:#2563EB;border:none" onclick="openEditRecord(${r.id})">✏ Edit</button>
+        <button class="record-btn" style="background:#FEE2E2;color:var(--red);border:none" onclick="deleteRecord(${r.id})">🗑 Delete</button>
+      </div>
     </div>`).join('') : '<div style="color:var(--ink-light);font-size:.85rem;padding:12px 0">No records found</div>';
 
   const recEl = document.getElementById('records-list');
@@ -1864,12 +1865,85 @@ function renderRecords(recs) {
   if (ovRec) ovRec.innerHTML = recs.slice(0,2).map(r=>`
     <div class="record-item">
       <div class="record-icon">${icons[r.type]||'📄'}</div>
-      <div><div class="record-name">${r.name}</div><div class="record-date">${r.hospital} · ${r.date}</div></div>
-      <button class="record-btn" onclick="showToast('Opening...')">View</button>
+      <div style="flex:1"><div class="record-name">${r.name}</div><div class="record-date">${r.hospital} · ${r.date}</div></div>
+      ${r.fileData ? `<button class="record-btn" onclick="viewRecord(${r.id})">👁 View</button>` : ''}
     </div>`).join('');
 
   const statEl = document.getElementById('stat-records');
   if (statEl) statEl.textContent = recs.length;
+}
+
+// stored records map for quick access
+let _recsCache = {};
+
+async function viewRecord(id) {
+  const rec = _recsCache[id] || await DB.get('records', id);
+  if (!rec || !rec.fileData) { showToast('⚠️ No file attached'); return; }
+  _recsCache[id] = rec;
+
+  const modal = document.getElementById('record-modal');
+  document.getElementById('modal-title').textContent = rec.name;
+  const body = document.getElementById('modal-body');
+  const isImage = rec.fileData.startsWith('data:image');
+  const isPdf   = rec.fileData.startsWith('data:application/pdf');
+
+  if (isImage) {
+    body.innerHTML = `<img src="${rec.fileData}" style="max-width:100%;max-height:60vh;border-radius:10px;object-fit:contain"/>`;
+  } else if (isPdf) {
+    body.innerHTML = `<iframe src="${rec.fileData}" style="width:100%;height:60vh;border:none;border-radius:10px"></iframe>`;
+  } else {
+    body.innerHTML = `<div style="padding:40px;color:var(--ink-light)">Preview not available for this file type.<br>Use Download to open it.</div>`;
+  }
+
+  document.getElementById('modal-download-btn').onclick = () => {
+    const a = document.createElement('a');
+    a.href = rec.fileData; a.download = rec.name; a.click();
+  };
+  modal.style.display = 'flex';
+}
+
+function closeRecordModal() {
+  document.getElementById('record-modal').style.display = 'none';
+  document.getElementById('modal-body').innerHTML = '';
+}
+
+async function openEditRecord(id) {
+  const rec = _recsCache[id] || await DB.get('records', id);
+  if (!rec) return;
+  _recsCache[id] = rec;
+  document.getElementById('edit-rec-id').value = id;
+  document.getElementById('edit-rec-name').value = rec.name;
+  document.getElementById('edit-rec-type').value = rec.type || 'upload';
+  document.getElementById('edit-rec-hospital').value = rec.hospital || '';
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+async function saveEditRecord() {
+  const id = parseInt(document.getElementById('edit-rec-id').value);
+  const rec = _recsCache[id] || await DB.get('records', id);
+  if (!rec) return;
+  rec.name     = document.getElementById('edit-rec-name').value.trim() || rec.name;
+  rec.type     = document.getElementById('edit-rec-type').value;
+  rec.hospital = document.getElementById('edit-rec-hospital').value.trim() || rec.hospital;
+  await DB.put('records', rec);
+  _recsCache[id] = rec;
+  closeEditModal();
+  const recs = await DB.getByIndex('records', 'patientId', currentUser.id);
+  renderRecords(recs);
+  showToast('✅ Record updated');
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Delete this record?')) return;
+  await DB.delete('records', id);
+  delete _recsCache[id];
+  const recs = await DB.getByIndex('records', 'patientId', currentUser.id);
+  renderRecords(recs);
+  showToast('🗑 Record deleted');
 }
 
 function renderMedications(meds) {
@@ -1899,8 +1973,6 @@ async function saveProfile() {
   if (!currentUser || currentUser.role !== 'patient') return;
   const updated = {
     ...currentUser,
-    id: currentUser.id, // prevent id tampering
-    patientId: currentUser.id,
     firstName: document.getElementById('prof-fname').value,
     lastName:  document.getElementById('prof-lname').value,
     dob:       document.getElementById('prof-dob').value,
@@ -1944,6 +2016,7 @@ async function uploadRecord(input) {
       fileData: e.target.result, createdAt: new Date().toISOString()
     });
     const recs = await DB.getByIndex('records', 'patientId', currentUser.id);
+    recs.forEach(r => _recsCache[r.id] = r);
     renderRecords(recs);
     showToast('✅ Record uploaded and saved!');
   };
