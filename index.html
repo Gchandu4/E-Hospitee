@@ -269,7 +269,7 @@ nav.scrolled{box-shadow:var(--shadow-md)}
 .feature-card:hover .fc-icon{transform:translateZ(16px) rotateY(-10deg) scale(1.1)}
 .fc-title{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--ink);margin-bottom:10px}
 .fc-desc{font-size:.88rem;color:var(--ink-light);line-height:1.75}
-.fc-tag{display:inline-block;margin-top:16px;font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:4px 12px;border-radius:100px;background:var(--teal-pale);color:var(--teal);border:1px solid var(--border-teal)}
+.fc-tag{display:none}
 
 /* ── EMERGENCY ── */
 .emergency-section{background:linear-gradient(135deg,var(--teal-dark),var(--teal) 50%,var(--teal-mid));padding:96px 32px;position:relative;overflow:hidden}
@@ -385,7 +385,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 .fw-card:hover .fw-icon{transform:translateZ(20px) scale(1.15) rotateY(-15deg)}
 .fw-title{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;color:var(--ink);margin-bottom:8px}
 .fw-desc{font-size:.85rem;color:var(--ink-light);line-height:1.7}
-.fw-badge{display:inline-block;margin-top:12px;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 10px;border-radius:100px;background:var(--teal-pale);color:var(--teal);border:1px solid var(--border-teal)}
+.fw-badge{display:none}
 
 /* ── WHATSAPP ── */
 .wa-fab{position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
@@ -1545,11 +1545,18 @@ const DB = {
   },
 
   async _loadSession() {
-    const s = localStorage.getItem(this._prefix + 'session');
-    if (s) {
-      const session = JSON.parse(s);
-      currentUser = session;
-    }
+    const raw = localStorage.getItem(this._prefix + 'session');
+    if (!raw) return;
+    try {
+      const session = JSON.parse(raw);
+      if (session.user) {
+        if (session.expiresAt && Date.now() > session.expiresAt) { this.clearSession(); return; }
+        currentUser = session.user;
+      } else {
+        // Legacy flat format
+        currentUser = session;
+      }
+    } catch { this.clearSession(); }
   },
 
   // Core CRUD
@@ -1621,12 +1628,16 @@ const DB = {
     return all.find(r => r.email === email) || null;
   },
 
-  // Session
+  // Session — stored as { user, expiresAt } for consistency
+  _sessionTTL: 8 * 60 * 60 * 1000,
   setSession(user, role) {
-    currentUser = { ...user, role };
-    localStorage.setItem(this._prefix + 'session', JSON.stringify(currentUser));
+    const { password: _omit, ...safeUser } = user;
+    currentUser = { ...safeUser, role };
+    localStorage.setItem(this._prefix + 'session', JSON.stringify({
+      user: currentUser,
+      expiresAt: Date.now() + this._sessionTTL
+    }));
   },
-
   clearSession() {
     currentUser = null;
     localStorage.removeItem(this._prefix + 'session');
@@ -1753,9 +1764,15 @@ async function handleLogin(type) {
     const btn = document.getElementById('patient-login-btn');
     if (btn) { btn.style.opacity='0.7'; btn.textContent='Signing in...'; }
     try {
-      let { data: user } = await _sb.from('patients').select('*').eq('email', id.toLowerCase()).maybeSingle();
-      if (!user) { const r = await _sb.from('patients').select('*').eq('mobile', id).maybeSingle(); user = r.data; }
-      if (!user || !(await verifyPw(pw, user.password))) { showToast('Invalid credentials'); return; }
+      let { data: user, error: err1 } = await _sb.from('patients').select('*').eq('email', id.toLowerCase()).maybeSingle();
+      if (err1) { showToast('Login error: ' + err1.message); return; }
+      if (!user) {
+        const { data: u2, error: err2 } = await _sb.from('patients').select('*').eq('mobile', id).maybeSingle();
+        if (err2) { showToast('Login error: ' + err2.message); return; }
+        user = u2;
+      }
+      if (!user) { showToast('No account found with that email. Please register first.'); return; }
+      if (!(await verifyPw(pw, user.password))) { showToast('Wrong password. Please try again.'); return; }
       const { password: _o, ...safeUser } = user;
       DB.setSession(safeUser, 'patient');
       goPage('page-patient');
@@ -1769,8 +1786,10 @@ async function handleLogin(type) {
     const pw = document.getElementById('hosp-login-pw').value.trim();
     if (!id || !pw) { showToast('Please enter your credentials'); return; }
     try {
-      const { data: hosp } = await _sb.from('hospitals').select('*').eq('email', id.toLowerCase()).maybeSingle();
-      if (!hosp || !(await verifyPw(pw, hosp.password))) { showToast('Invalid credentials'); return; }
+      const { data: hosp, error: herr } = await _sb.from('hospitals').select('*').eq('email', id.toLowerCase()).maybeSingle();
+      if (herr) { showToast('Login error: ' + herr.message); return; }
+      if (!hosp) { showToast('No hospital account found with that email. Please register first.'); return; }
+      if (!(await verifyPw(pw, hosp.password))) { showToast('Wrong password. Please try again.'); return; }
       const { password: _o, ...safeHosp } = hosp;
       DB.setSession(safeHosp, 'hospital');
       goPage('page-hospital');
