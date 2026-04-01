@@ -1028,7 +1028,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     <a class="nav-logo" style="cursor:default"><div class="logo-mark">🏥</div><span class="logo-text">E-Hospi<span>tee</span></span></a>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:.85rem;color:var(--ink-mid)">Welcome, <strong id="patient-name"></strong> 👋</div>
-      <button onclick="goPage('page-landing')" class="nav-btn-outline" style="padding:7px 16px!important;font-size:.82rem!important;background:transparent;color:var(--teal);border:1.5px solid var(--teal);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">Sign Out</button>
+      <button onclick="signOut()" class="nav-btn-outline" style="padding:7px 16px!important;font-size:.82rem!important;background:transparent;color:var(--teal);border:1.5px solid var(--teal);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">Sign Out</button>
     </div>
   </div>
 </nav>
@@ -1632,127 +1632,129 @@ let currentUser = null;
 // Init DB on load
 DB.init().catch(e => console.error('DB init failed:', e));
 
-// ── REGISTRATION (DB-connected) ──
+// ── REGISTRATION (Supabase direct) ──
 async function handleRegister() {
   const btn = document.getElementById('reg-btn');
-  btn.textContent = 'Creating account...';
-  btn.disabled = true;
+  btn.textContent = 'Creating account...'; btn.disabled = true;
+
+  // Hash password helper
+  async function hashPw(pw) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2,'0')).join('');
+    const data = new TextEncoder().encode(saltHex + pw);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    return saltHex + ':' + hex;
+  }
 
   try {
     if (selectedRole === 'patient') {
       const inputs = document.querySelectorAll('#reg-patient-form input, #reg-patient-form select');
       const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
-      if (!firstName || !email || !password) { showToast('⚠️ Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
-      if (password !== confirmPw) { showToast('⚠️ Passwords do not match'); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      if (!firstName || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      if (password !== confirmPw) { showToast('Passwords do not match'); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      if (password.length < 8) { showToast('Password must be at least 8 characters'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-      // Save to server (PostgreSQL)
-      const res = await fetch('/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, mobile, email, dob, bloodGroup, password, role: 'patient' })
-      });
-      const data = await res.json();
-      if (!data.success) { showToast('⚠️ ' + data.error); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      const { data: existing } = await _sb.from('patients').select('id').eq('email', email.toLowerCase()).maybeSingle();
+      if (existing) { showToast('Email already registered. Please sign in.'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-      // Also save locally for dashboard data
-      const id = await DB.add('patients', { firstName, lastName, mobile, email, dob, bloodGroup, password, allergies:'', emergencyContact:'', serverId: data.user.id, createdAt: new Date().toISOString() });
-      const user = await DB.get('patients', id);
-      DB.setSession(user, 'patient');
-      showToast('✅ Account created successfully!');
+      const hashed = await hashPw(password);
+      const { data: user, error } = await _sb.from('patients').insert({
+        firstName, lastName, mobile: mobile || null, email: email.toLowerCase(),
+        dob: dob || null, bloodGroup: bloodGroup || null, password: hashed,
+        allergies: '', emergencyContact: '', createdAt: new Date().toISOString()
+      }).select().single();
+
+      if (error) { showToast('Registration failed: ' + error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
+
+      const { password: _omit, ...safeUser } = user;
+      DB.setSession(safeUser, 'patient');
+      showToast('Account created! Welcome, ' + user.firstName + '!');
       goPage('page-patient');
-      loadPatientDash(user);
+      loadPatientDash(safeUser);
 
     } else {
       const inputs = document.querySelectorAll('#reg-hospital-form input');
       const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
-      if (!name || !email || !password) { showToast('⚠️ Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      if (!name || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      if (password.length < 8) { showToast('Password must be at least 8 characters'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-      // Save to server (PostgreSQL)
-      const res = await fetch('/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: name, email, mobile: phone, password, role: 'hospital' })
-      });
-      const data = await res.json();
-      if (!data.success) { showToast('⚠️ ' + data.error); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      const { data: existing } = await _sb.from('hospitals').select('id').eq('email', email.toLowerCase()).maybeSingle();
+      if (existing) { showToast('Email already registered. Please sign in.'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
-      await DB.add('hospitals', { name, regNo, city, pincode, contactPerson, email, phone, password, createdAt: new Date().toISOString() });
-      DB.setSession({ name, email }, 'hospital');
-      showToast('✅ Hospital account created!');
+      const hashed = await hashPw(password);
+      const { data: hosp, error } = await _sb.from('hospitals').insert({
+        name, regNo: regNo || null, city: city || null, pincode: pincode || null,
+        contactPerson: contactPerson || null, email: email.toLowerCase(),
+        phone: phone || null, password: hashed, createdAt: new Date().toISOString()
+      }).select().single();
+
+      if (error) { showToast('Registration failed: ' + error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
+
+      const { password: _omit, ...safeHosp } = hosp;
+      DB.setSession(safeHosp, 'hospital');
+      showToast('Hospital account created! Welcome, ' + hosp.name + '!');
       setTimeout(() => goPage('page-hospital'), 800);
     }
   } catch(e) {
-    showToast('⚠️ Registration failed. Try again.');
+    showToast('Registration failed: ' + (e.message || 'Try again'));
     console.error(e);
   }
   btn.textContent = 'Create Account →'; btn.disabled = false;
 }
 
-// ── LOGIN (DB-connected) ──
-function handleLogin(type) {
+// -- LOGIN (Supabase direct) --
+async function handleLogin(type) {
+  async function verifyPw(pw, stored) {
+    if (!stored) return false;
+    if (!stored.includes(':')) return stored === pw;
+    const [saltHex, storedHash] = stored.split(':');
+    const data = new TextEncoder().encode(saltHex + pw);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    return hex === storedHash;
+  }
+  if (type === 'demo-patient') {
+    const { data: user } = await _sb.from('patients').select('*').eq('email', 'rajesh@demo.com').maybeSingle();
+    if (user) { const { password: _o, ...u } = user; DB.setSession(u, 'patient'); goPage('page-patient'); loadPatientDash(u); }
+    else showToast('Demo account not found. Please register first.');
+    return;
+  }
+  if (type === 'demo-hospital') {
+    const { data: hosp } = await _sb.from('hospitals').select('*').eq('email', 'admin@apollo.com').maybeSingle();
+    if (hosp) { const { password: _o, ...h } = hosp; DB.setSession(h, 'hospital'); goPage('page-hospital'); }
+    else showToast('Demo account not found. Please register first.');
+    return;
+  }
   if (type === 'patient') {
-    const email = document.getElementById('login-id').value.trim();
-    const password = document.getElementById('login-pw').value.trim();
-    if (!email || !password) { showToast('⚠️ Enter email and password'); return; }
-
+    const id = document.getElementById('login-id').value.trim();
+    const pw = document.getElementById('login-pw').value.trim();
+    if (!id || !pw) { showToast('Please enter your credentials'); return; }
     const btn = document.getElementById('patient-login-btn');
-    btn.style.opacity = '0.7'; btn.textContent = 'Signing in…';
-
-    fetch('/signin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
-    .then(r => r.json())
-    .then(data => {
-      btn.style.opacity = '1'; btn.textContent = 'Sign In as Patient →';
-      if (!data.success) {
-        showToast('⚠️ Invalid email or password');
-        return;
-      }
-      const user = {
-        id: data.user.id,
-        firstName: data.user.first_name,
-        lastName: data.user.last_name,
-        email: data.user.email,
-        mobile: data.user.mobile || '',
-        dob: data.user.dob || '',
-        bloodGroup: data.user.blood_group || '',
-        patientId: data.user.patient_id || '',
-        allergies: '', emergencyContact: ''
-      };
-      DB.setSession(user, 'patient');
+    if (btn) { btn.style.opacity='0.7'; btn.textContent='Signing in...'; }
+    try {
+      let { data: user } = await _sb.from('patients').select('*').eq('email', id.toLowerCase()).maybeSingle();
+      if (!user) { const r = await _sb.from('patients').select('*').eq('mobile', id).maybeSingle(); user = r.data; }
+      if (!user || !(await verifyPw(pw, user.password))) { showToast('Invalid credentials'); return; }
+      const { password: _o, ...safeUser } = user;
+      DB.setSession(safeUser, 'patient');
       goPage('page-patient');
-      loadPatientDash(user);
-    })
-    .catch(e => {
-      btn.style.opacity = '1'; btn.textContent = 'Sign In as Patient →';
-      showToast('⚠️ Login failed. Try again.');
-      console.error(e);
-    });
+      loadPatientDash(safeUser);
+    } catch(e) { showToast('Login error: ' + e.message); console.error(e); }
+    finally { if (btn) { btn.style.opacity='1'; btn.textContent='Sign In as Patient'; } }
     return;
   }
   if (type === 'hospital') {
-    const email = document.getElementById('hosp-login-id').value.trim();
-    const password = document.getElementById('hosp-login-pw').value.trim();
-    if (!email || !password) { showToast('⚠️ Enter email and password'); return; }
-
-    fetch('/signin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.success) { showToast('⚠️ ' + data.error); return; }
-      DB.setSession({ name: data.user.first_name, email: data.user.email }, 'hospital');
+    const id = document.getElementById('hosp-login-id').value.trim();
+    const pw = document.getElementById('hosp-login-pw').value.trim();
+    if (!id || !pw) { showToast('Please enter your credentials'); return; }
+    try {
+      const { data: hosp } = await _sb.from('hospitals').select('*').eq('email', id.toLowerCase()).maybeSingle();
+      if (!hosp || !(await verifyPw(pw, hosp.password))) { showToast('Invalid credentials'); return; }
+      const { password: _o, ...safeHosp } = hosp;
+      DB.setSession(safeHosp, 'hospital');
       goPage('page-hospital');
-    })
-    .catch(e => {
-      showToast('⚠️ Login failed. Try again.');
-      console.error(e);
-    });
-    return;
+    } catch(e) { showToast('Login error: ' + e.message); console.error(e); }
   }
 }
 
