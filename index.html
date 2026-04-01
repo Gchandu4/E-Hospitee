@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>E-Hospitee — Hospital & Patient Management Platform</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1386,6 +1387,11 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 </div><!-- /page-hospital -->
 
 <script>
+// ── SUPABASE CLIENT ──
+const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // ── PAGE NAVIGATION ──
 function goPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
