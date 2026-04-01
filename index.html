@@ -945,33 +945,33 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     <!-- Patient form -->
     <div id="reg-patient-form">
       <div class="form-row">
-        <div class="form-group"><label class="form-label">First Name</label><input class="form-control" type="text" placeholder="Rajesh"/></div>
-        <div class="form-group"><label class="form-label">Last Name</label><input class="form-control" type="text" placeholder="Kumar"/></div>
+        <div class="form-group"><label class="form-label">First Name *</label><input class="form-control" type="text" id="reg-fname" placeholder="Rajesh"/></div>
+        <div class="form-group"><label class="form-label">Last Name *</label><input class="form-control" type="text" id="reg-lname" placeholder="Kumar"/></div>
       </div>
-      <div class="form-group"><label class="form-label">Mobile Number</label><input class="form-control" type="tel" placeholder="+91 98765 43210"/></div>
-      <div class="form-group"><label class="form-label">Email Address</label><input class="form-control" type="email" placeholder="rajesh@email.com"/></div>
+      <div class="form-group"><label class="form-label">Mobile Number</label><input class="form-control" type="tel" id="reg-mobile" placeholder="+91 98765 43210"/></div>
+      <div class="form-group"><label class="form-label">Email Address *</label><input class="form-control" type="email" id="reg-email" placeholder="rajesh@email.com"/></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Date of Birth</label><input class="form-control" type="date"/></div>
+        <div class="form-group"><label class="form-label">Date of Birth</label><input class="form-control" type="date" id="reg-dob"/></div>
         <div class="form-group"><label class="form-label">Blood Group</label>
-          <select class="form-control"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select>
+          <select class="form-control" id="reg-blood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Password</label><input class="form-control" type="password" placeholder="Create a strong password"/></div>
-      <div class="form-group"><label class="form-label">Confirm Password</label><input class="form-control" type="password" placeholder="Repeat password"/></div>
+      <div class="form-group"><label class="form-label">Password *</label><input class="form-control" type="password" id="reg-password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
+      <div class="form-group"><label class="form-label">Confirm Password *</label><input class="form-control" type="password" id="reg-confirm" placeholder="Repeat password"/></div>
     </div>
 
     <!-- Hospital form -->
     <div id="reg-hospital-form" style="display:none">
-      <div class="form-group"><label class="form-label">Hospital Name</label><input class="form-control" type="text" placeholder="Apollo Hospitals"/></div>
-      <div class="form-group"><label class="form-label">Registration Number</label><input class="form-control" type="text" placeholder="MCI-HYD-2024-XXXXX"/></div>
+      <div class="form-group"><label class="form-label">Hospital Name *</label><input class="form-control" type="text" id="reg-hosp-name" placeholder="Apollo Hospitals"/></div>
+      <div class="form-group"><label class="form-label">Registration Number</label><input class="form-control" type="text" id="reg-hosp-regno" placeholder="MCI-HYD-2024-XXXXX"/></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">City</label><input class="form-control" type="text" placeholder="Hyderabad"/></div>
-        <div class="form-group"><label class="form-label">Pincode</label><input class="form-control" type="text" placeholder="500032"/></div>
+        <div class="form-group"><label class="form-label">City</label><input class="form-control" type="text" id="reg-hosp-city" placeholder="Hyderabad"/></div>
+        <div class="form-group"><label class="form-label">Pincode</label><input class="form-control" type="text" id="reg-hosp-pin" placeholder="500032"/></div>
       </div>
-      <div class="form-group"><label class="form-label">Contact Person</label><input class="form-control" type="text" placeholder="Dr. Name / Admin Name"/></div>
-      <div class="form-group"><label class="form-label">Official Email</label><input class="form-control" type="email" placeholder="admin@hospital.com"/></div>
-      <div class="form-group"><label class="form-label">Phone Number</label><input class="form-control" type="tel" placeholder="+91 40 XXXX XXXX"/></div>
-      <div class="form-group"><label class="form-label">Password</label><input class="form-control" type="password" placeholder="Create a strong password"/></div>
+      <div class="form-group"><label class="form-label">Contact Person</label><input class="form-control" type="text" id="reg-hosp-contact" placeholder="Dr. Name / Admin Name"/></div>
+      <div class="form-group"><label class="form-label">Official Email *</label><input class="form-control" type="email" id="reg-hosp-email" placeholder="admin@hospital.com"/></div>
+      <div class="form-group"><label class="form-label">Phone Number</label><input class="form-control" type="tel" id="reg-hosp-phone" placeholder="+91 40 XXXX XXXX"/></div>
+      <div class="form-group"><label class="form-label">Password *</label><input class="form-control" type="password" id="reg-hosp-password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
     </div>
 
     <button class="form-btn" id="reg-btn" onclick="handleRegister()">Create Account →</button>
@@ -1063,7 +1063,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 
     <!-- OVERVIEW -->
     <div class="dash-panel active" id="p-overview">
-      <div class="dash-header"><div class="dash-title"></div><div class="dash-sub">Tuesday, 10 March 2026 · Here's your health summary</div></div>
+      <div class="dash-header"><div class="dash-title" id="dash-greeting">Good morning</div><div class="dash-sub" id="dash-date-sub">Here's your health summary</div></div>
       <div class="dash-grid">
         <div class="dash-stat-card"><div class="dsc-icon">📅</div><div class="dsc-num" id="stat-upcoming">0</div><div class="dsc-lbl">Upcoming Appointments</div></div>
         <div class="dash-stat-card"><div class="dsc-icon">📋</div><div class="dsc-num" id="stat-records">0</div><div class="dsc-lbl">Health Records</div></div>
@@ -1655,8 +1655,15 @@ async function handleRegister() {
 
   try {
     if (selectedRole === 'patient') {
-      const inputs = document.querySelectorAll('#reg-patient-form input, #reg-patient-form select');
-      const [firstName, lastName, mobile, email, dob, bloodGroup, password, confirmPw] = [...inputs].map(i => i.value.trim());
+      const firstName  = document.getElementById('reg-fname')?.value.trim() || '';
+      const lastName   = document.getElementById('reg-lname')?.value.trim() || '';
+      const mobile     = document.getElementById('reg-mobile')?.value.trim() || '';
+      const email      = document.getElementById('reg-email')?.value.trim() || '';
+      const dob        = document.getElementById('reg-dob')?.value.trim() || '';
+      const bloodGroup = document.getElementById('reg-blood')?.value.trim() || '';
+      const password   = document.getElementById('reg-password')?.value || '';
+      const confirmPw  = document.getElementById('reg-confirm')?.value || '';
+
       if (!firstName || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
       if (password !== confirmPw) { showToast('Passwords do not match'); btn.textContent='Create Account →'; btn.disabled=false; return; }
       if (password.length < 8) { showToast('Password must be at least 8 characters'); btn.textContent='Create Account →'; btn.disabled=false; return; }
@@ -1680,8 +1687,15 @@ async function handleRegister() {
       loadPatientDash(safeUser);
 
     } else {
-      const inputs = document.querySelectorAll('#reg-hospital-form input');
-      const [name, regNo, city, pincode, contactPerson, email, phone, password] = [...inputs].map(i => i.value.trim());
+      const name          = document.getElementById('reg-hosp-name')?.value.trim() || '';
+      const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || '';
+      const city          = document.getElementById('reg-hosp-city')?.value.trim() || '';
+      const pincode       = document.getElementById('reg-hosp-pin')?.value.trim() || '';
+      const contactPerson = document.getElementById('reg-hosp-contact')?.value.trim() || '';
+      const email         = document.getElementById('reg-hosp-email')?.value.trim() || '';
+      const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || '';
+      const password      = document.getElementById('reg-hosp-password')?.value || '';
+
       if (!name || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
       if (password.length < 8) { showToast('Password must be at least 8 characters'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
