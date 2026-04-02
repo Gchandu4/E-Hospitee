@@ -1412,9 +1412,9 @@ function initPage(id){
 }
 
 // ── REGISTRATION ──
-let selectedRole='patient';
+let selectRole='patient';
 function selectRole(r){
-  selecteRole=r;
+  selectRole=r;
   document.getElementById('role-patient').classList.toggle('selected',r==='patient');
   document.getElementById('role-hospital').classList.toggle('selected',r==='hospital');
   document.getElementById('reg-patient-form').style.display=r==='patient'?'block':'none';
@@ -1671,7 +1671,7 @@ async function handleRegister() {
   }
 
   try {
-    if (selectedRole === 'patient') {
+    if (selectRole === 'patient') {
       const firstName  = document.getElementById('reg-fname')?.value.trim() || '';
       const lastName   = document.getElementById('reg-lname')?.value.trim() || '';
       const mobile     = document.getElementById('reg-mobile')?.value.trim() || '';
