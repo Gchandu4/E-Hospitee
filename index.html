@@ -1414,14 +1414,17 @@ function initPage(id){
 
 // ── REGISTRATION ──
 
-let selectedRole = 'patient';
-
-function selectRole(r) {
-  selectedRole = r;
-  document.getElementById('role-patient').classList.toggle('selected', r === 'patient');
-  document.getElementById('role-hospital').classList.toggle('selected', r === 'hospital');
-  document.getElementById('reg-patient-form').style.display = r === 'patient' ? 'block' : 'none';
-  document.getElementById('reg-hospital-form').style.display = r === 'hospital' ? 'block' : 'none';
+let selectedRole='patient';
+function selectRole(r){
+  selectedRole=r;
+  document.getElementById('role-patient').classList.toggle('selected',r==='patient');
+  document.getElementById('role-hospital').classList.toggle('selected',r==='hospital');
+  document.getElementById('reg-patient-form').style.display=r==='patient'?'block':'none';
+  document.getElementById('reg-hospital-form').style.display=r==='hospital'?'block':'none';
+  // Scroll auth card to top so user sees the form
+  const card = document.querySelector('#page-register .auth-card');
+  if(card) card.scrollTop = 0;
+  window.scrollTo({top: document.querySelector('#page-register .auth-wrap')?.offsetTop || 0, behavior:'smooth'});
 }
 
 
