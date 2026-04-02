@@ -62,9 +62,15 @@ nav.scrolled{box-shadow:var(--shadow-md)}
 .auth-wrap::before{content:'';position:absolute;top:-200px;right:-200px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(11,122,117,.07),transparent 70%);pointer-events:none}
 .auth-card{background:var(--white);border-radius:24px;box-shadow:var(--shadow-lg);border:1px solid var(--border);padding:48px;width:100%;max-width:480px;position:relative;z-index:1;transform-style:preserve-3d;transition:transform .4s,box-shadow .4s}
 /*.auth-card:hover{transform:perspective(1000px) rotateX(-1deg) translateZ(8px);box-shadow:0 24px 64px rgba(11,122,117,.14)}p*/
-  
+.auth-card {
+  transform: none !important;
+}
 .auth-card:hover {
-  box-shadow: 0 24px 64px rgba(11,122,117,.14);
+  transform: none !important;
+}
+
+.role-card:hover {
+  transform: none !important;
 }
 
 .auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;justify-content:center}
