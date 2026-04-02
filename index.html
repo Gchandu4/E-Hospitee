@@ -1409,10 +1409,12 @@ function selectRole(r){
   document.getElementById('role-hospital').classList.toggle('selected',r==='hospital');
   document.getElementById('reg-patient-form').style.display=r==='patient'?'block':'none';
   document.getElementById('reg-hospital-form').style.display=r==='hospital'?'block':'none';
-  // Scroll auth card to top so user sees the form
-  const card = document.querySelector('#page-register .auth-card');
-  if(card) card.scrollTop = 0;
-  window.scrollTo({top: document.querySelector('#page-register .auth-wrap')?.offsetTop || 0, behavior:'smooth'});
+
+  // REMOVE THIS:
+  // window.scrollTo(...)
+
+  // REMOVE THIS TOO — rarely needed:
+  // card.scrollTop = 0;
 }
 
 // ── LOGIN ──
