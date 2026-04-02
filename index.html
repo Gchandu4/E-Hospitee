@@ -1422,18 +1422,7 @@ function selectRole(r){
   if(card) card.scrollTop = 0;
   window.scrollTo({top: document.querySelector('#page-register .auth-wrap')?.offsetTop || 0, behavior:'smooth'});
 }
-function selectRole(role) {
-  // Update UI
-  document.getElementById('role-patient').classList.toggle('selected', role === 'patient');
-  document.getElementById('role-hospital').classList.toggle('selected', role === 'hospital');
-  
-  // Toggle forms
-  document.getElementById('reg-patient-form').style.display = role === 'patient' ? 'block' : 'none';
-  document.getElementById('reg-hospital-form').style.display = role === 'hospital' ? 'block' : 'none';
-  
-  // Update button text
-  document.getElementById('reg-btn').textContent = role === 'patient' ? 'Create Account →' : 'Register Hospital →';
-}
+
 // ── LOGIN ──
 function switchLoginTab(type,btn){
   document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
