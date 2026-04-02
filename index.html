@@ -61,7 +61,12 @@ nav.scrolled{box-shadow:var(--shadow-md)}
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:100px 20px 40px;background:linear-gradient(160deg,var(--white) 0%,var(--teal-pale) 100%);position:relative;overflow:hidden}
 .auth-wrap::before{content:'';position:absolute;top:-200px;right:-200px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(11,122,117,.07),transparent 70%);pointer-events:none}
 .auth-card{background:var(--white);border-radius:24px;box-shadow:var(--shadow-lg);border:1px solid var(--border);padding:48px;width:100%;max-width:480px;position:relative;z-index:1;transform-style:preserve-3d;transition:transform .4s,box-shadow .4s}
-.auth-card:hover{transform:perspective(1000px) rotateX(-1deg) translateZ(8px);box-shadow:0 24px 64px rgba(11,122,117,.14)}
+/*.auth-card:hover{transform:perspective(1000px) rotateX(-1deg) translateZ(8px);box-shadow:0 24px 64px rgba(11,122,117,.14)}p*/
+  
+.auth-card:hover {
+  box-shadow: 0 24px 64px rgba(11,122,117,.14);
+}
+
 .auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;justify-content:center}
 .auth-title{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:800;color:var(--ink);text-align:center;margin-bottom:6px}
 .auth-sub{font-size:.9rem;color:var(--ink-light);text-align:center;margin-bottom:32px}
@@ -381,17 +386,6 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
 
 /* ── WHATSAPP ── */
 .wa-fab{position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
-  /* Fix: WhatsApp FAB shouldn't block clicks on the page */
-.wa-fab {
-  pointer-events: none !important;
-}
-
-/* Enable clicking only on the button and chat */
-.wa-fab .wa-btn,
-.wa-fab .wa-chat,
-.wa-fab .wa-pulse {
-  pointer-events: auto !important;
-}
 .wa-btn{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);box-shadow:0 6px 24px rgba(37,211,102,.45),0 2px 8px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:all .3s cubic-bezier(.23,1,.32,1);transform-style:preserve-3d;position:relative;flex-shrink:0}
 .wa-btn:hover{transform:scale(1.12) translateZ(8px);box-shadow:0 12px 40px rgba(37,211,102,.55)}
 .wa-btn svg{width:32px;height:32px;fill:white}
