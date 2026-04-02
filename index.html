@@ -1428,6 +1428,15 @@ function selectRole(r){
   // card.scrollTop = 0;
 }
 
+  let selectedRole = 'hospital';
+
+function selectRole(r) {
+  selectedRole = r;
+  document.getElementById('role-patient').classList.toggle('selected', r === 'patient');
+  document.getElementById('role-hospital').classList.toggle('selected', r === 'hospital');
+  document.getElementById('reg-patient-form').style.display = r === 'patient' ? 'block' : 'none';
+  document.getElementById('reg-hospital-form').style.display = r === 'hospital' ? 'block' : 'none';
+}
 // ── LOGIN ──
 function switchLoginTab(type,btn){
   document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
