@@ -1414,7 +1414,7 @@ function initPage(id){
 // ── REGISTRATION ──
 let selectedRole='patient';
 function selectRole(r){
-  selectedRole=r;
+  selecteRole=r;
   document.getElementById('role-patient').classList.toggle('selected',r==='patient');
   document.getElementById('role-hospital').classList.toggle('selected',r==='hospital');
   document.getElementById('reg-patient-form').style.display=r==='patient'?'block':'none';
