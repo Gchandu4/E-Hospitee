@@ -926,54 +926,7 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     <p class="auth-sub">Join thousands of patients and hospitals across Hyderabad</p>
 
     <!-- Role selector -->
-    <div style="margin-bottom:20px">
-      <div style="font-size:.82rem;font-weight:600;color:var(--ink-mid);margin-bottom:10px">I am registering as:</div>
-      <div class="role-cards">
-        <div class="role-card " id="role-patient" onclick="selectRole('patient')">
-          <div class="role-card-icon">👤</div>
-          <div class="role-card-title">Patient</div>
-          <div class="role-card-sub">Book appointments & manage records</div>
-        </div>
-        <div class="role-card selected" id="role-hospital" onclick="selectRole('hospital')">
-          <div class="role-card-icon">🏥</div>
-          <div class="role-card-title">Hospital</div>
-          <div class="role-card-sub">Manage patients & operations</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Patient form -->
-    <div id="reg-patient-form">
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">First Name *</label><input class="form-control" type="text" id="reg-fname" placeholder="Rajesh"/></div>
-        <div class="form-group"><label class="form-label">Last Name *</label><input class="form-control" type="text" id="reg-lname" placeholder="Kumar"/></div>
-      </div>
-      <div class="form-group"><label class="form-label">Mobile Number</label><input class="form-control" type="tel" id="reg-mobile" placeholder="+91 98765 43210"/></div>
-      <div class="form-group"><label class="form-label">Email Address *</label><input class="form-control" type="email" id="reg-email" placeholder="rajesh@email.com"/></div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Date of Birth</label><input class="form-control" type="date" id="reg-dob"/></div>
-        <div class="form-group"><label class="form-label">Blood Group</label>
-          <select class="form-control" id="reg-blood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select>
-        </div>
-      </div>
-      <div class="form-group"><label class="form-label">Password *</label><input class="form-control" type="password" id="reg-password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
-      <div class="form-group"><label class="form-label">Confirm Password *</label><input class="form-control" type="password" id="reg-confirm" placeholder="Repeat password"/></div>
-    </div>
-
-    <!-- Hospital form -->
-    <div id="reg-hospital-form" >
-      <div class="form-group"><label class="form-label">Hospital Name *</label><input class="form-control" type="text" id="reg-hosp-name" placeholder="Apollo Hospitals"/></div>
-      <div class="form-group"><label class="form-label">Registration Number</label><input class="form-control" type="text" id="reg-hosp-regno" placeholder="MCI-HYD-2024-XXXXX"/></div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">City</label><input class="form-control" type="text" id="reg-hosp-city" placeholder="Hyderabad"/></div>
-        <div class="form-group"><label class="form-label">Pincode</label><input class="form-control" type="text" id="reg-hosp-pin" placeholder="500032"/></div>
-      </div>
-      <div class="form-group"><label class="form-label">Contact Person</label><input class="form-control" type="text" id="reg-hosp-contact" placeholder="Dr. Name / Admin Name"/></div>
-      <div class="form-group"><label class="form-label">Official Email *</label><input class="form-control" type="email" id="reg-hosp-email" placeholder="admin@hospital.com"/></div>
-      <div class="form-group"><label class="form-label">Phone Number</label><input class="form-control" type="tel" id="reg-hosp-phone" placeholder="+91 40 XXXX XXXX"/></div>
-      <div class="form-group"><label class="form-label">Password *</label><input class="form-control" type="password" id="reg-hosp-password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
-    </div>
-
+    
     <button class="form-btn" id="reg-btn" onclick="handleRegister()">Create Account →</button>
     <div class="auth-switch">Already have an account? <a onclick="goPage('page-login')">Sign in here</a></div>
   </div>
