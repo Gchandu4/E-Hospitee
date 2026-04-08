@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Requests - E-Hospitee Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #0B7A75; margin-bottom: 10px; }
+    .subtitle { color: #666; margin-bottom: 30px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .stat-number { font-size: 2rem; font-weight: bold; color: #0B7A75; }
+    .stat-label { color: #666; font-size: 0.9rem; margin-top: 5px; }
+    .filters { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .filters select, .filters button { padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9rem; }
+    .filters button { background: #0B7A75; color: white; border: none; cursor: pointer; margin-left: 10px; }
+    .filters button:hover { background: #085553; }
+    table { width: 100%; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    th { background: #0B7A75; color: white; padding: 15px; text-align: left; font-weight: 600; }
+    td { padding: 15px; border-bottom: 1px solid #eee; }
+    tr:hover { background: #f9f9f9; }
+    .status { padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .status-pending { background: #FEF3C7; color: #D97706; }
+    .status-contacted { background: #DBEAFE; color: #1D4ED8; }
+    .status-completed { background: #DCFCE7; color: #16A34A; }
+    .actions button { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; margin-right: 5px; }
+    .btn-call { background: #0B7A75; color: white; }
+    .btn-whatsapp { background: #25D366; color: white; }
+    .btn-update { background: #6B7280; color: white; }
+    .actions button:hover { opacity: 0.8; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+    .time { color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏥 Demo Requests Dashboard</h1>
+    <p class="subtitle">Manage hospital demo requests</p>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-total">0</div>
+        <div class="stat-label">Total Requests</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-pending">0</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-contacted">0</div>
+        <div class="stat-label">Contacted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-completed">0</div>
+        <div class="stat-label">Completed</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <select id="filter-status">
+        <option value="all">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="contacted">Contacted</option>
+        <option value="completed">Completed</option>
+      </select>
+      <button onclick="loadRequests()">🔄 Refresh</button>
+      <button onclick="exportToCSV()">📥 Export CSV</button>
+    </div>
+
+    <div id="loading" class="loading">Loading requests...</div>
+    <div id="empty" class="empty" style="display:none">No demo requests yet</div>
+
+    <table id="requests-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Hospital Name</th>
+          <th>Mobile</th>
+          <th>Status</th>
+          <th>Requested</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requests-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://ajscgpuozcyqsteseppp.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2NncHVvemN5cXN0ZXNlcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTk2NDIsImV4cCI6MjA5MDQzNTY0Mn0.NAZG-ZdcwJGHN-SLscKb2MeUIJ52GBOiNmxlBPqGeHg';
+    const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let allRequests = [];
+
+    async function loadRequests() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('requests-table').style.display = 'none';
+      document.getElementById('empty').style.display = 'none';
+
+      try {
+        const { data, error } = await _sb
+          .from('demo_requests')
+          .select('*')
+          .order('requested_at', { ascending: false });
+
+        if (error) throw error;
+
+        allRequests = data || [];
+        updateStats();
+        renderRequests();
+
+      } catch(e) {
+        console.error('Error loading requests:', e);
+        alert('Failed to load requests: ' + e.message);
+      }
+
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function updateStats() {
+      document.getElementById('stat-total').textContent = allRequests.length;
+      document.getElementById('stat-pending').textContent = allRequests.filter(r => r.status === 'pending').length;
+      document.getElementById('stat-contacted').textContent = allRequests.filter(r => r.status === 'contacted').length;
+      document.getElementById('stat-completed').textContent = allRequests.filter(r => r.status === 'completed').length;
+    }
+
+    function renderRequests() {
+      const filter = document.getElementById('filter-status').value;
+      const filtered = filter === 'all' ? allRequests : allRequests.filter(r => r.status === filter);
+
+      if (filtered.length === 0) {
+        document.getElementById('empty').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('requests-table').style.display = 'table';
+      const tbody = document.getElementById('requests-body');
+      tbody.innerHTML = filtered.map(req => `
+        <tr>
+          <td><strong>${escapeHtml(req.hospital_name)}</strong></td>
+          <td>${escapeHtml(req.mobile)}</td>
+          <td><span class="status status-${req.status}">${req.status.toUpperCase()}</span></td>
+          <td class="time">${formatTime(req.requested_at)}</td>
+          <td class="actions">
+            <button class="btn-call" onclick="callHospital('${req.mobile}')">📞 Call</button>
+            <button class="btn-whatsapp" onclick="sendWhatsApp('${escapeHtml(req.hospital_name)}', '${req.mobile}')">💬 WhatsApp</button>
+            <button class="btn-update" onclick="updateStatus('${req.id}', '${req.status}')">✏️ Update</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      
+      if (hours < 1) return 'Just now';
+      if (hours < 24) return `${hours}h ago`;
+      
+      return date.toLocaleDateString('en-IN', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function callHospital(mobile) {
+      window.location.href = `tel:${mobile}`;
+    }
+
+    function sendWhatsApp(hospitalName, mobile) {
+      const message = `Hi ${hospitalName}! This is regarding your demo request for E-Hospitee. When would be a good time to schedule a demo?`;
+      window.open(`https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`, '_blank');
+    }
+
+    async function updateStatus(id, currentStatus) {
+      const statuses = ['pending', 'contacted', 'completed'];
+      const currentIndex = statuses.indexOf(currentStatus);
+      const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+
+      const notes = prompt(`Update status to "${nextStatus}"?\n\nAdd notes (optional):`);
+      if (notes === null) return;
+
+      try {
+        const { error } = await _sb
+          .from('demo_requests')
+          .update({ 
+            status: nextStatus,
+            contacted_at: nextStatus === 'contacted' ? new Date().toISOString() : undefined,
+            notes: notes || undefined
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        alert('Status updated successfully!');
+        loadRequests();
+
+      } catch(e) {
+        alert('Failed to update: ' + e.message);
+      }
+    }
+
+    function exportToCSV() {
+      const csv = [
+        ['Hospital Name', 'Mobile', 'Status', 'Requested At', 'Notes'],
+        ...allRequests.map(r => [
+          r.hospital_name,
+          r.mobile,
+          r.status,
+          new Date(r.requested_at).toLocaleString('en-IN'),
+          r.notes || ''
+        ])
+      ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `demo-requests-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Event listeners
+    document.getElementById('filter-status').addEventListener('change', renderRequests);
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadRequests, 30000);
+
+    // Initial load
+    loadRequests();
+  </script>
+</body>
+</html>

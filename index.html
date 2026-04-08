@@ -1492,10 +1492,65 @@ function switchTab(type,btn){
 }
 
 // ── CTA ──
-function handleCTA(btn){
-  const inputs=btn.parentElement.querySelectorAll('input');let ok=true;
-  inputs.forEach(i=>{if(!i.value.trim()){i.style.borderColor='#F87171';setTimeout(()=>i.style.borderColor='',2000);ok=false;}});
-  if(ok){btn.textContent='Sent ✓';btn.style.background='#16A34A';document.getElementById('cta-success').style.display='block';inputs.forEach(i=>i.value='');}
+async function handleCTA(btn){
+  const inputs = btn.parentElement.querySelectorAll('input');
+  const hospitalName = inputs[0].value.trim();
+  const mobile = inputs[1].value.trim();
+  
+  // Validation
+  let ok = true;
+  if (!hospitalName) { inputs[0].style.borderColor='#F87171'; setTimeout(()=>inputs[0].style.borderColor='',2000); ok=false; }
+  if (!mobile) { inputs[1].style.borderColor='#F87171'; setTimeout(()=>inputs[1].style.borderColor='',2000); ok=false; }
+  if (!ok) return;
+  
+  // Validate mobile number
+  const mobileDigits = mobile.replace(/[\s\-\+\(\)]/g,'');
+  if (!/^\d{10}$/.test(mobileDigits)) {
+    showToast('Please enter a valid 10-digit mobile number');
+    inputs[1].style.borderColor='#F87171';
+    setTimeout(()=>inputs[1].style.borderColor='',2000);
+    return;
+  }
+  
+  btn.textContent = 'Sending...';
+  btn.disabled = true;
+  
+  try {
+    // Save to Supabase
+    const { data, error } = await _sb.from('demo_requests').insert({
+      hospital_name: hospitalName,
+      mobile: mobile,
+      status: 'pending',
+      requested_at: new Date().toISOString(),
+      source: 'website'
+    }).select().single();
+    
+    if (error) throw error;
+    
+    // Send WhatsApp notification to admin
+    const message = `🏥 NEW DEMO REQUEST\n\nHospital: ${hospitalName}\nMobile: ${mobile}\nTime: ${new Date().toLocaleString('en-IN')}\n\nPlease contact within 24 hours.`;
+    const whatsappUrl = `https://wa.me/917032527095?text=${encodeURIComponent(message)}`;
+    
+    // Open WhatsApp in new tab (optional - you can remove this if you don't want auto-open)
+    // window.open(whatsappUrl, '_blank');
+    
+    // Log to audit
+    SecureLogger.info('demo_request', { hospital: hospitalName, mobile: mobile });
+    
+    // Success
+    btn.textContent = 'Sent ✓';
+    btn.style.background = '#16A34A';
+    document.getElementById('cta-success').style.display = 'block';
+    inputs.forEach(i => i.value = '');
+    
+    showToast('Demo request sent! We\'ll call you within 24 hours.');
+    
+  } catch(e) {
+    console.error('Demo request error:', e);
+    showToast('Failed to send request. Please try again or call us directly.');
+    btn.textContent = 'Request Demo →';
+    btn.disabled = false;
+  }
 }
 
 // ── TOAST ──
@@ -2131,7 +2186,7 @@ async function bookAppointment(doctor, specialty, hospital, fee) {
 function signOut() { DB.clearSession(); goPage('page-landing'); }
 
 // ── WHATSAPP CHAT ──
-const WA_NUMBER = '919876543210'; // Replace with real number
+const WA_NUMBER = '917032527095'; // Your WhatsApp number
 let waOpen = false;
 
 function toggleChat(){
