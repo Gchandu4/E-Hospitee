@@ -2154,15 +2154,71 @@ async function addMedication() {
 async function uploadRecord(input) {
   if (!currentUser || !input.files[0]) return;
   const file = input.files[0];
-  if (file.size > 5*1024*1024) { showToast('File must be under 5MB'); return; }
+  
+  // Validate file
+  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+  if (!allowedTypes.includes(file.type)) {
+    showToast('Only PDF, JPG, and PNG files are allowed');
+    input.value = '';
+    return;
+  }
+  
+  if (file.size > 5*1024*1024) { 
+    showToast('File must be under 5MB'); 
+    input.value = '';
+    return; 
+  }
+  
+  showToast('Uploading ' + file.name + '...');
+  
   const reader = new FileReader();
-  reader.onload = async e => {
-    const { error } = await _sb.from('records').insert({ patientId: currentUser.id, name: file.name, type: 'upload', hospital: 'Self Upload', date: new Date().toISOString().split('T')[0], fileData: e.target.result, createdAt: new Date().toISOString() });
-    if (error) { showToast('Upload failed: ' + error.message); return; }
-    const { data: recs } = await _sb.from('records').select('*').eq('patientId', currentUser.id);
-    if (recs) { recs.forEach(r => _recsCache[r.id] = r); renderRecords(recs); }
-    showToast('Record uploaded!');
+  reader.onerror = () => {
+    showToast('Failed to read file. Please try again.');
+    input.value = '';
   };
+  
+  reader.onload = async e => {
+    try {
+      const { data, error } = await _sb.from('records').insert({ 
+        patientId: currentUser.id, 
+        name: file.name, 
+        type: 'upload', 
+        hospital: 'Self Upload', 
+        date: new Date().toISOString().split('T')[0], 
+        fileData: e.target.result, 
+        createdAt: new Date().toISOString() 
+      }).select().single();
+      
+      if (error) {
+        console.error('Upload error:', error);
+        
+        // Check if fileData column is missing
+        if (error.message && error.message.includes('fileData')) {
+          showToast('Database not set up. Please contact support.');
+        } else {
+          showToast('Upload failed: ' + error.message);
+        }
+        input.value = '';
+        return;
+      }
+      
+      // Reload records
+      const { data: recs } = await _sb.from('records').select('*').eq('patientId', currentUser.id);
+      if (recs) { 
+        recs.forEach(r => _recsCache[r.id] = r); 
+        renderRecords(recs); 
+      }
+      
+      showToast('✓ ' + file.name + ' uploaded successfully!');
+      input.value = '';
+      
+    } catch(err) {
+      console.error('Upload exception:', err);
+      showToast('Upload failed. Please try again.');
+      input.value = '';
+    }
+  };
+  
   reader.readAsDataURL(file);
 }
 
