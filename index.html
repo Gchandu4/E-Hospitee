@@ -1788,21 +1788,40 @@ async function handleRegister() {
       if (existing) { showToast('Email already registered. Please sign in.'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
       // Generate unique patient ID
-      const patientId = await generatePatientId();
+      let patientId = null;
+      try {
+        patientId = await generatePatientId();
+      } catch(e) {
+        console.warn('Could not generate patient ID, will be null:', e);
+        // Continue without patient ID - it's optional
+      }
       
       const hashed = await hashPw(password);
-      const { data: user, error } = await _sb.from('patients').insert({
-        patientId: patientId,
+      const insertData = {
         firstName, lastName, mobile: mobile || null, email: email.toLowerCase(),
         dob: dob || null, bloodGroup: bloodGroup || null, password: hashed,
         allergies: '', emergencyContact: '', createdAt: new Date().toISOString()
-      }).select().single();
+      };
+      
+      // Only add patientId if it was generated successfully
+      if (patientId) {
+        insertData.patientId = patientId;
+      }
+      
+      const { data: user, error } = await _sb.from('patients').insert(insertData).select().single();
 
       if (error) { showToast('Registration failed: ' + error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
       const { password: _omit, ...safeUser } = user;
       DB.setSession(safeUser, 'patient');
-      showToast('Account created! Your Patient ID: ' + patientId);
+      
+      // Show success message with or without patient ID
+      if (user.patientId) {
+        showToast('Account created! Your Patient ID: ' + user.patientId);
+      } else {
+        showToast('Account created! Welcome, ' + user.firstName + '!');
+      }
+      
       goPage('page-patient');
       loadPatientDash(safeUser);
 
