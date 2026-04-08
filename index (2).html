@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>E-Hospitee — Hospital & Patient Management Platform</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Hospitee — Hospital & Patient Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;font-size:16px}
@@ -69,7 +70,17 @@ nav.scrolled{box-shadow:var(--shadow-md)}
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:100px 20px 40px;background:linear-gradient(160deg,var(--white) 0%,var(--teal-pale) 100%);position:relative;overflow:hidden}
 .auth-wrap::before{content:'';position:absolute;top:-200px;right:-200px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(11,122,117,.07),transparent 70%);pointer-events:none}
 .auth-card{background:var(--white);border-radius:24px;box-shadow:var(--shadow-lg);border:1px solid var(--border);padding:48px;width:100%;max-width:480px;position:relative;z-index:1;transform-style:preserve-3d;transition:transform .4s,box-shadow .4s}
-.auth-card:hover{transform:perspective(1000px) rotateX(-1deg) translateZ(8px);box-shadow:0 24px 64px rgba(11,122,117,.14)}
+/*.auth-card:hover{transform:perspective(1000px) rotateX(-1deg) translateZ(8px);box-shadow:0 24px 64px rgba(11,122,117,.14)}*/
+  .auth-card {
+  transform: none !important;
+}
+.auth-card:hover {
+  transform: none !important;
+}
+
+.role-card:hover {
+  transform: none !important;
+}
 .auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;justify-content:center}
 .auth-title{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:800;color:var(--ink);text-align:center;margin-bottom:6px}
 .auth-sub{font-size:.9rem;color:var(--ink-light);text-align:center;margin-bottom:32px}
@@ -1410,9 +1421,9 @@ function initPage(id){
 }
 
 // ── REGISTRATION ──
-let selectedRole='patient';
+let currentRole='patient';
 function selectRole(r){
-  selectedRole=r;
+  currentRole=r;
   document.getElementById('role-patient').classList.toggle('selected',r==='patient');
   document.getElementById('role-hospital').classList.toggle('selected',r==='hospital');
   document.getElementById('reg-patient-form').style.display=r==='patient'?'block':'none';
@@ -1669,7 +1680,7 @@ async function handleRegister() {
   }
 
   try {
-    if (selectedRole === 'patient') {
+    if (currentRole === 'patient') {
       const firstName  = document.getElementById('reg-fname')?.value.trim() || '';
       const lastName   = document.getElementById('reg-lname')?.value.trim() || '';
       const mobile     = document.getElementById('reg-mobile')?.value.trim() || '';
