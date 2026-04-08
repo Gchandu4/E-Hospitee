@@ -5,6 +5,7 @@
 -- Step 1: Create tables
 create table if not exists patients (
   id            uuid primary key default gen_random_uuid(),
+  "patientId"   text unique,
   "firstName"   text,
   "lastName"    text,
   email         text unique,

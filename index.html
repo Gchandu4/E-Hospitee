@@ -1747,6 +1747,28 @@ async function handleRegister() {
     return saltHex + ':' + hex;
   }
 
+  // Generate Patient ID (format: 26001, 26002, etc.)
+  async function generatePatientId() {
+    try {
+      // Get count of existing patients
+      const { count, error } = await _sb
+        .from('patients')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      
+      // Generate ID: 26 + sequential number (padded to 3 digits)
+      const nextNumber = (count || 0) + 1;
+      const patientId = '26' + String(nextNumber).padStart(3, '0');
+      
+      return patientId;
+    } catch(e) {
+      console.error('Error generating patient ID:', e);
+      // Fallback: use timestamp-based ID
+      return '26' + String(Date.now()).slice(-3);
+    }
+  }
+
   try {
     if (currentRole === 'patient') {
       const firstName  = document.getElementById('reg-fname')?.value.trim() || '';
@@ -1765,8 +1787,12 @@ async function handleRegister() {
       const { data: existing } = await _sb.from('patients').select('id').eq('email', email.toLowerCase()).maybeSingle();
       if (existing) { showToast('Email already registered. Please sign in.'); btn.textContent='Create Account →'; btn.disabled=false; return; }
 
+      // Generate unique patient ID
+      const patientId = await generatePatientId();
+      
       const hashed = await hashPw(password);
       const { data: user, error } = await _sb.from('patients').insert({
+        patientId: patientId,
         firstName, lastName, mobile: mobile || null, email: email.toLowerCase(),
         dob: dob || null, bloodGroup: bloodGroup || null, password: hashed,
         allergies: '', emergencyContact: '', createdAt: new Date().toISOString()
@@ -1776,7 +1802,7 @@ async function handleRegister() {
 
       const { password: _omit, ...safeUser } = user;
       DB.setSession(safeUser, 'patient');
-      showToast('Account created! Welcome, ' + user.firstName + '!');
+      showToast('Account created! Your Patient ID: ' + patientId);
       goPage('page-patient');
       loadPatientDash(safeUser);
 
