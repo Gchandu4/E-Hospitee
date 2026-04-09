@@ -1810,7 +1810,20 @@ async function handleRegister() {
       
       const { data: user, error } = await _sb.from('patients').insert(insertData).select().single();
 
-      if (error) { showToast('Registration failed: ' + error.message); btn.textContent='Create Account →'; btn.disabled=false; return; }
+      if (error) { 
+        console.error('Registration error:', error);
+        
+        // If it's still a patientId column error, show helpful message
+        if (error.message && error.message.includes('patientId')) {
+          showToast('Please hard refresh the page (Ctrl+Shift+R or Ctrl+F5) and try again');
+        } else {
+          showToast('Registration failed: ' + error.message);
+        }
+        
+        btn.textContent='Create Account →'; 
+        btn.disabled=false; 
+        return; 
+      }
 
       const { password: _omit, ...safeUser } = user;
       DB.setSession(safeUser, 'patient');
