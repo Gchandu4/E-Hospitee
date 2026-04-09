@@ -1,0 +1,210 @@
+<div id="page-register" class="page">
+<style>
+.ap-wrap{min-height:100vh;display:flex;background:#f8fffe;padding-top:68px}
+.ap-brand{width:400px;flex-shrink:0;background:linear-gradient(160deg,#085553 0%,#0B7A75 55%,#0D9488 100%);display:flex;flex-direction:column;justify-content:center;padding:56px 44px;position:relative;overflow:hidden}
+.ap-brand::before{content:'';position:absolute;top:-120px;right:-120px;width:380px;height:380px;border-radius:50%;background:rgba(255,255,255,.05)}
+.ap-brand::after{content:'';position:absolute;bottom:-80px;left:-80px;width:280px;height:280px;border-radius:50%;background:rgba(255,255,255,.04)}
+.ap-brand-logo{display:flex;align-items:center;gap:12px;margin-bottom:44px;position:relative;z-index:1}
+.ap-brand-icon{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem}
+.ap-brand-name{font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:700;color:white}
+.ap-brand-name span{color:rgba(255,255,255,.65)}
+.ap-brand-h{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:800;color:white;line-height:1.2;margin-bottom:14px;position:relative;z-index:1}
+.ap-brand-p{font-size:.88rem;color:rgba(255,255,255,.7);line-height:1.75;margin-bottom:36px;position:relative;z-index:1}
+.ap-brand-list{display:flex;flex-direction:column;gap:13px;position:relative;z-index:1}
+.ap-brand-item{display:flex;align-items:center;gap:11px;font-size:.84rem;color:rgba(255,255,255,.85)}
+.ap-brand-dot{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.ap-form-side{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:40px 32px;overflow-y:auto}
+.ap-form-box{width:100%;max-width:460px;padding-top:8px}
+.ap-form-title{font-family:'Playfair Display',serif;font-size:1.75rem;font-weight:800;color:#111827;margin-bottom:4px}
+.ap-form-sub{font-size:.87rem;color:#6b7280;margin-bottom:28px}
+.ap-role-tabs{display:flex;border:1.5px solid #e5e7eb;border-radius:11px;overflow:hidden;margin-bottom:24px}
+.ap-role-tab{flex:1;padding:11px 14px;border:none;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:500;color:#6b7280;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px}
+.ap-role-tab:first-child{border-right:1.5px solid #e5e7eb}
+.ap-role-tab.active{background:#0B7A75;color:white;font-weight:600}
+.ap-role-tab:not(.active):hover{background:#f0fdfa;color:#0B7A75}
+.ap-err{display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:10px 14px;margin-bottom:14px;font-size:.83rem;color:#dc2626;font-weight:500}
+.ap-err.show{display:block}
+.af{margin-bottom:16px}
+.af label{display:block;font-size:.79rem;font-weight:600;color:#374151;margin-bottom:5px;letter-spacing:.01em}
+.ai{width:100%;padding:10px 13px;border:1.5px solid #e5e7eb;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:.88rem;color:#111827;background:white;outline:none;transition:all .2s;box-sizing:border-box}
+.ai:focus{border-color:#0B7A75;box-shadow:0 0 0 3px rgba(11,122,117,.09);background:#fafffe}
+.ai:hover:not(:focus){border-color:#c4c9d4}
+.ai::placeholder{color:#9ca3af}
+.ai.err{border-color:#ef4444;background:#fff5f5}
+.af-err{font-size:.73rem;color:#ef4444;margin-top:3px;display:none;font-weight:500}
+.af-err.show{display:block}
+.af-row{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.pw-wrap{position:relative}
+.pw-wrap .ai{padding-right:42px}
+.pw-eye{position:absolute;right:11px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af;font-size:.82rem;padding:2px;transition:color .2s}
+.pw-eye:hover{color:#0B7A75}
+.pw-bar{height:3px;border-radius:2px;margin-top:5px;background:#e5e7eb;overflow:hidden}
+.pw-bar-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0}
+.pw-hint{font-size:.71rem;color:#9ca3af;margin-top:2px}
+.ap-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#0B7A75,#0D9488);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:.93rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(11,122,117,.26);transition:all .25s;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px}
+.ap-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 22px rgba(11,122,117,.34)}
+.ap-btn:disabled{opacity:.65;cursor:not-allowed;transform:none}
+.ap-btn .sp{display:none;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:apspin .6s linear infinite}
+.ap-btn.loading .sp{display:block}
+@keyframes apspin{to{transform:rotate(360deg)}}
+.ap-switch{text-align:center;margin-top:18px;font-size:.84rem;color:#6b7280}
+.ap-switch a{color:#0B7A75;font-weight:600;cursor:pointer;text-decoration:none}
+.ap-switch a:hover{text-decoration:underline}
+@media(max-width:820px){.ap-brand{display:none}.ap-form-side{padding:80px 20px 40px}}
+@media(max-width:480px){.af-row{grid-template-columns:1fr}}
+</style>
+
+<nav style="position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-bottom:1px solid #e5e7eb">
+  <div class="nav-inner">
+    <a class="nav-logo" onclick="goPage('page-landing')" style="cursor:pointer">
+      <div class="logo-mark">&#x1F3E5;</div>
+      <span class="logo-text">E-Hospi<span>tee</span></span>
+    </a>
+    <ul class="nav-links"><li><button onclick="goPage('page-login')" class="nav-btn-outline">Sign In Instead</button></li></ul>
+  </div>
+</nav>
+
+<div class="ap-wrap">
+  <div class="ap-brand">
+    <div class="ap-brand-logo">
+      <div class="ap-brand-icon">&#x1F3E5;</div>
+      <div class="ap-brand-name">E-Hospi<span>tee</span></div>
+    </div>
+    <div class="ap-brand-h">Healthcare at your fingertips</div>
+    <div class="ap-brand-p">Join thousands of patients and hospitals across Hyderabad on one unified platform.</div>
+    <div class="ap-brand-list">
+      <div class="ap-brand-item"><div class="ap-brand-dot">&#x1F4C5;</div>Book specialist appointments instantly</div>
+      <div class="ap-brand-item"><div class="ap-brand-dot">&#x1F4CB;</div>All health records in one secure place</div>
+      <div class="ap-brand-item"><div class="ap-brand-dot">&#x1F6A8;</div>One-tap SOS with live ambulance tracking</div>
+      <div class="ap-brand-item"><div class="ap-brand-dot">&#x1F48A;</div>Medication reminders and follow-up alerts</div>
+    </div>
+  </div>
+
+  <div class="ap-form-side">
+    <div class="ap-form-box">
+      <div class="ap-form-title">Create your account</div>
+      <div class="ap-form-sub">Fill in the details below to get started</div>
+
+      <div class="ap-role-tabs">
+        <button class="ap-role-tab active" id="reg-tab-patient" onclick="selectRole('patient')">&#x1F464; Patient</button>
+        <button class="ap-role-tab" id="reg-tab-hospital" onclick="selectRole('hospital')">&#x1F3E5; Hospital</button>
+      </div>
+
+      <div class="ap-err" id="reg-err-banner"></div>
+
+      <div id="reg-patient-form">
+        <div class="af-row">
+          <div class="af"><label>First Name *</label><input class="ai" type="text" id="reg-fname" placeholder="Rajesh" autocomplete="given-name"/><div class="af-err" id="err-reg-fname"></div></div>
+          <div class="af"><label>Last Name *</label><input class="ai" type="text" id="reg-lname" placeholder="Kumar" autocomplete="family-name"/><div class="af-err" id="err-reg-lname"></div></div>
+        </div>
+        <div class="af"><label>Email Address *</label><input class="ai" type="email" id="reg-email" placeholder="you@email.com" autocomplete="email"/><div class="af-err" id="err-reg-email"></div></div>
+        <div class="af"><label>Mobile Number</label><input class="ai" type="tel" id="reg-mobile" placeholder="+91 98765 43210" autocomplete="tel"/></div>
+        <div class="af-row">
+          <div class="af"><label>Date of Birth</label><input class="ai" type="date" id="reg-dob" autocomplete="bday"/></div>
+          <div class="af"><label>Blood Group</label><select class="ai" id="reg-blood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
+        </div>
+        <div class="af"><label>Password *</label>
+          <div class="pw-wrap"><input class="ai" type="password" id="reg-password" placeholder="Min 8 chars, 1 uppercase, 1 number" autocomplete="new-password" oninput="regPwStr(this.value,'')"/><button type="button" class="pw-eye" onclick="togPw('reg-password',this)">&#x1F441;</button></div>
+          <div class="pw-bar"><div class="pw-bar-fill" id="reg-pw-bar"></div></div><div class="pw-hint" id="reg-pw-hint"></div>
+          <div class="af-err" id="err-reg-password"></div>
+        </div>
+        <div class="af"><label>Confirm Password *</label>
+          <div class="pw-wrap"><input class="ai" type="password" id="reg-confirm" placeholder="Repeat your password" autocomplete="new-password"/><button type="button" class="pw-eye" onclick="togPw('reg-confirm',this)">&#x1F441;</button></div>
+          <div class="af-err" id="err-reg-confirm"></div>
+        </div>
+      </div>
+
+      <div id="reg-hospital-form" style="display:none">
+        <div class="af"><label>Hospital Name *</label><input class="ai" type="text" id="reg-hosp-name" placeholder="Apollo Hospitals" autocomplete="organization"/><div class="af-err" id="err-reg-hosp-name"></div></div>
+        <div class="af-row">
+          <div class="af"><label>Registration No.</label><input class="ai" type="text" id="reg-hosp-regno" placeholder="MCI-HYD-2024-XXXXX"/></div>
+          <div class="af"><label>City</label><input class="ai" type="text" id="reg-hosp-city" placeholder="Hyderabad"/></div>
+        </div>
+        <div class="af-row">
+          <div class="af"><label>Contact Person</label><input class="ai" type="text" id="reg-hosp-contact" placeholder="Dr. Name / Admin"/></div>
+          <div class="af"><label>Phone Number</label><input class="ai" type="tel" id="reg-hosp-phone" placeholder="+91 40 XXXX XXXX"/></div>
+        </div>
+        <div class="af"><label>Official Email *</label><input class="ai" type="email" id="reg-hosp-email" placeholder="admin@hospital.com" autocomplete="email"/><div class="af-err" id="err-reg-hosp-email"></div></div>
+        <div class="af"><label>Password *</label>
+          <div class="pw-wrap"><input class="ai" type="password" id="reg-hosp-password" placeholder="Min 8 chars, 1 uppercase, 1 number" autocomplete="new-password" oninput="regPwStr(this.value,'h')"/><button type="button" class="pw-eye" onclick="togPw('reg-hosp-password',this)">&#x1F441;</button></div>
+          <div class="pw-bar"><div class="pw-bar-fill" id="reg-pw-bar-h"></div></div><div class="pw-hint" id="reg-pw-hint-h"></div>
+          <div class="af-err" id="err-reg-hosp-password"></div>
+        </div>
+      </div>
+
+      <button class="ap-btn" id="reg-btn" onclick="doRegister()"><span class="sp"></span>Create Account</button>
+      <div class="ap-switch">Already have an account? <a onclick="goPage('page-login')">Sign in here</a></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function togPw(id,btn){var i=document.getElementById(id);if(!i)return;if(i.type==='password'){i.type='text';btn.innerHTML='Hide';}else{i.type='password';btn.innerHTML='&#x1F441;';}}
+function regPwStr(pw,s){var b=document.getElementById('reg-pw-bar'+(s?'-'+s:'')),h=document.getElementById('reg-pw-hint'+(s?'-'+s:''));if(!b||!h)return;var n=0;if(pw.length>=8)n++;if(/[A-Z]/.test(pw))n++;if(/[0-9]/.test(pw))n++;if(/[^A-Za-z0-9]/.test(pw))n++;var l=[['0%','transparent',''],['25%','#ef4444','Weak'],['50%','#f97316','Fair'],['75%','#eab308','Good'],['100%','#22c55e','Strong']][n]||['0%','transparent',''];b.style.width=l[0];b.style.background=l[1];h.textContent=l[2];h.style.color=l[1];}
+function showRErr(id,msg){var i=document.getElementById(id),e=document.getElementById('err-'+id);if(i){i.classList.add('err');i.focus();}if(e){e.textContent=msg;e.classList.add('show');}}
+function clrRErr(id){var i=document.getElementById(id),e=document.getElementById('err-'+id);if(i)i.classList.remove('err');if(e){e.textContent='';e.classList.remove('show');}}
+function showRBanner(msg){var b=document.getElementById('reg-err-banner');b.textContent=msg;b.classList.add('show');b.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function hideRBanner(){document.getElementById('reg-err-banner').classList.remove('show');}
+
+async function doRegister(){
+  hideRBanner();
+  var btn=document.getElementById('reg-btn');
+  var isP=document.getElementById('reg-hospital-form').style.display==='none';
+  var ok=true;
+  if(isP){
+    ['reg-fname','reg-lname','reg-email','reg-password','reg-confirm'].forEach(clrRErr);
+    var fn=(document.getElementById('reg-fname').value||'').trim();
+    var ln=(document.getElementById('reg-lname').value||'').trim();
+    var em=(document.getElementById('reg-email').value||'').trim();
+    var pw=document.getElementById('reg-password').value||'';
+    var cp=document.getElementById('reg-confirm').value||'';
+    if(!fn){showRErr('reg-fname','First name is required');ok=false;}
+    if(!ln){showRErr('reg-lname','Last name is required');ok=false;}
+    if(!em||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){showRErr('reg-email','Valid email is required');ok=false;}
+    if(!pw||pw.length<8){showRErr('reg-password','Min 8 characters');ok=false;}
+    else if(!/[A-Z]/.test(pw)){showRErr('reg-password','Must contain an uppercase letter');ok=false;}
+    else if(!/[0-9]/.test(pw)){showRErr('reg-password','Must contain a number');ok=false;}
+    if(pw&&cp&&pw!==cp){showRErr('reg-confirm','Passwords do not match');ok=false;}
+  }else{
+    ['reg-hosp-name','reg-hosp-email','reg-hosp-password'].forEach(clrRErr);
+    var hn=(document.getElementById('reg-hosp-name').value||'').trim();
+    var he=(document.getElementById('reg-hosp-email').value||'').trim();
+    var hp=document.getElementById('reg-hosp-password').value||'';
+    if(!hn){showRErr('reg-hosp-name','Hospital name is required');ok=false;}
+    if(!he||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(he)){showRErr('reg-hosp-email','Valid email is required');ok=false;}
+    if(!hp||hp.length<8){showRErr('reg-hosp-password','Min 8 characters');ok=false;}
+    else if(!/[A-Z]/.test(hp)){showRErr('reg-hosp-password','Must contain an uppercase letter');ok=false;}
+    else if(!/[0-9]/.test(hp)){showRErr('reg-hosp-password','Must contain a number');ok=false;}
+  }
+  if(!ok)return;
+  btn.disabled=true;btn.classList.add('loading');
+  try{
+    async function hpw(p){var s=crypto.getRandomValues(new Uint8Array(16));var sh=Array.from(s).map(function(b){return b.toString(16).padStart(2,'0');}).join('');var d=new TextEncoder().encode(sh+p);var buf=await crypto.subtle.digest('SHA-256',d);var h=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');return sh+':'+h;}
+    if(isP){
+      var email=document.getElementById('reg-email').value.trim().toLowerCase();
+      var pw2=document.getElementById('reg-password').value;
+      var c=await _sb.from('patients').select('id').eq('email',email).maybeSingle();
+      if(c.error){showRBanner('Error: '+c.error.message);return;}
+      if(c.data){showRBanner('Email already registered. Please sign in.');return;}
+      var h=await hpw(pw2);
+      var r=await _sb.from('patients').insert({firstName:document.getElementById('reg-fname').value.trim(),lastName:document.getElementById('reg-lname').value.trim(),mobile:document.getElementById('reg-mobile').value.trim()||null,email:email,dob:document.getElementById('reg-dob').value||null,bloodGroup:document.getElementById('reg-blood').value||null,password:h,allergies:'',emergencyContact:'',createdAt:new Date().toISOString()}).select().single();
+      if(r.error){showRBanner('Registration failed: '+r.error.message);return;}
+      var u=r.data;var safe=Object.assign({},u);delete safe.password;
+      DB.setSession(safe,'patient');showToast('Welcome, '+u.firstName+'!');goPage('page-patient');loadPatientDash(safe);
+    }else{
+      var hemail=document.getElementById('reg-hosp-email').value.trim().toLowerCase();
+      var hpwd=document.getElementById('reg-hosp-password').value;
+      var c2=await _sb.from('hospitals').select('id').eq('email',hemail).maybeSingle();
+      if(c2.error){showRBanner('Error: '+c2.error.message);return;}
+      if(c2.data){showRBanner('Email already registered. Please sign in.');return;}
+      var h2=await hpw(hpwd);
+      var hr=await _sb.from('hospitals').insert({name:document.getElementById('reg-hosp-name').value.trim(),regNo:document.getElementById('reg-hosp-regno').value.trim()||null,city:document.getElementById('reg-hosp-city').value.trim()||null,contactPerson:document.getElementById('reg-hosp-contact').value.trim()||null,phone:document.getElementById('reg-hosp-phone').value.trim()||null,email:hemail,password:h2,createdAt:new Date().toISOString()}).select().single();
+      if(hr.error){showRBanner('Registration failed: '+hr.error.message);return;}
+      var hosp=hr.data;var hsafe=Object.assign({},hosp);delete hsafe.password;
+      DB.setSession(hsafe,'hospital');showToast('Welcome, '+hosp.name+'!');setTimeout(function(){goPage('page-hospital');},800);
+    }
+  }catch(e){showRBanner('Error: '+(e.message||'Something went wrong'));console.error(e);}
+  finally{btn.disabled=false;btn.classList.remove('loading');}
+}
+</script>
+</div><!-- /page-register -->

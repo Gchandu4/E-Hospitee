@@ -1,0 +1,194 @@
+# ═══════════════════════════════════════════════════════════════
+# E-Hospitee - Git Ignore File
+# Prevents sensitive and unnecessary files from being pushed to GitHub
+# ═══════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────
+# SENSITIVE FILES - Contains credentials, keys, or private data
+# ───────────────────────────────────────────────────────────────
+
+# Environment variables and configuration
+.env
+.env.local
+.env.production
+.env.development
+config.json
+secrets.json
+
+# Database credentials and connection strings
+database.config.js
+db-credentials.txt
+
+# API keys and tokens
+api-keys.txt
+supabase-keys.txt
+render-keys.txt
+
+# Private notes and internal documentation
+PRIVATE_NOTES.md
+INTERNAL_DOCS.md
+CREDENTIALS.txt
+PASSWORDS.txt
+
+# ───────────────────────────────────────────────────────────────
+# BACKUP AND TEMPORARY FILES
+# ───────────────────────────────────────────────────────────────
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+*~
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ───────────────────────────────────────────────────────────────
+# DEVELOPMENT FILES
+# ───────────────────────────────────────────────────────────────
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ───────────────────────────────────────────────────────────────
+# IDE AND EDITOR FILES
+# ───────────────────────────────────────────────────────────────
+
+# Visual Studio Code
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/.ropeproject
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ───────────────────────────────────────────────────────────────
+# OPERATING SYSTEM FILES
+# ───────────────────────────────────────────────────────────────
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ───────────────────────────────────────────────────────────────
+# BUILD AND DISTRIBUTION FILES
+# ───────────────────────────────────────────────────────────────
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Compiled files
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# ───────────────────────────────────────────────────────────────
+# LOG FILES
+# ───────────────────────────────────────────────────────────────
+
+# Application logs
+*.log
+logs/
+*.log.*
+
+# Debug logs
+debug.log
+error.log
+
+# ───────────────────────────────────────────────────────────────
+# DATABASE FILES
+# ───────────────────────────────────────────────────────────────
+
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Database dumps
+*.sql.gz
+*.dump
+
+# ───────────────────────────────────────────────────────────────
+# TESTING AND COVERAGE
+# ───────────────────────────────────────────────────────────────
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# ───────────────────────────────────────────────────────────────
+# DOCUMENTATION (Optional - uncomment if you want to keep docs private)
+# ───────────────────────────────────────────────────────────────
+
+# Uncomment these if you want to keep documentation private
+# PRIVATE_*.md
+# INTERNAL_*.md
+# CREDENTIALS_*.md
+
+# ───────────────────────────────────────────────────────────────
+# PROJECT SPECIFIC
+# ───────────────────────────────────────────────────────────────
+
+# Python fix scripts (if you want to keep them private)
+# fix_*.py
+# verify_*.py
+
+# Batch files (if you want to keep them private)
+# *.bat
+
+# Private SQL scripts (if you want to keep them private)
+# verify_*.sql
+
+# ═══════════════════════════════════════════════════════════════
+# END OF .gitignore
+# ═══════════════════════════════════════════════════════════════
