@@ -494,9 +494,17 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
   .stats-bar-inner{grid-template-columns:1fr 1fr}
   .fw-content.active{grid-template-columns:1fr}
   .hero-visual{display:none}
-  .sidebar{transform:translateX(-100%)}
-  .dash-main{margin-left:0}
+  .sidebar{position:fixed;transform:translateX(-100%);z-index:200;box-shadow:var(--shadow-lg);transition:transform .3s}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .dash-main{margin-left:0;padding-top:60px}
   .nav-links li:not(:last-child):not(:nth-last-child(2)){display:none}
+  /* Mobile patient info header */
+  .mobile-patient-header{display:flex!important;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:68px;z-index:50}
+  .mobile-patient-info{display:flex;align-items:center;gap:10px}
+  .mobile-patient-avatar{width:36px;height:36px;border-radius:50%;background:var(--teal-pale);border:2px solid var(--border-teal);display:flex;align-items:center;justify-content:center;font-size:1rem}
+  .mobile-patient-name{font-weight:600;font-size:.88rem;color:var(--ink)}
+  .mobile-patient-id{font-size:.72rem;color:var(--ink-light)}
+  .mobile-menu-btn{background:var(--teal-pale);border:1px solid var(--border-teal);color:var(--teal);padding:8px 12px;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
 }
 @media(max-width:600px){
   .features-grid,.testimonials-track,.footer-grid,.stats-bar-inner,.dash-grid,.book-grid,.vitals-grid{grid-template-columns:1fr}
@@ -505,6 +513,10 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
   .cta-card{padding:40px 24px}
   .auth-card{padding:32px 24px}
   .form-row{grid-template-columns:1fr}
+  /* Make record buttons stack on very small screens */
+  .record-item{flex-wrap:wrap}
+  .record-item > div:last-child{width:100%;margin-top:8px;justify-content:flex-start}
+  .record-btn{font-size:.7rem!important;padding:4px 10px!important}
 }
 </style>
 </head>
@@ -1044,6 +1056,21 @@ footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 32px 40px}
     </div>
   </div>
 </nav>
+
+<!-- Mobile Patient Header (visible only on mobile) -->
+<div class="mobile-patient-header" style="display:none">
+  <div class="mobile-patient-info">
+    <div class="mobile-patient-avatar">👤</div>
+    <div>
+      <div class="mobile-patient-name" id="mobile-patient-name">Patient</div>
+      <div class="mobile-patient-id" id="mobile-patient-id">ID: —</div>
+    </div>
+  </div>
+  <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">
+    <span>☰</span> Menu
+  </button>
+</div>
+
 <div class="dash-wrap">
   <div class="sidebar">
     <div class="sidebar-section">
@@ -1447,7 +1474,30 @@ function showPanel(id,btn){
   document.querySelectorAll('#page-patient .dash-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if(btn){document.querySelectorAll('#page-patient .sidebar-item').forEach(s=>s.classList.remove('active'));btn.classList.add('active');}
+  // Close mobile sidebar after selection
+  if(window.innerWidth <= 960) {
+    const sidebar = document.querySelector('#page-patient .sidebar');
+    if(sidebar) sidebar.classList.remove('mobile-open');
+  }
 }
+
+// ── MOBILE SIDEBAR TOGGLE ──
+function toggleMobileSidebar(){
+  const sidebar = document.querySelector('#page-patient .sidebar');
+  if(sidebar) sidebar.classList.toggle('mobile-open');
+}
+
+// Close mobile sidebar when clicking outside
+document.addEventListener('click', function(e) {
+  if(window.innerWidth <= 960) {
+    const sidebar = document.querySelector('#page-patient .sidebar');
+    const menuBtn = document.querySelector('.mobile-menu-btn');
+    if(sidebar && sidebar.classList.contains('mobile-open') && 
+       !sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+      sidebar.classList.remove('mobile-open');
+    }
+  }
+});
 
 // ── HOSPITAL DASHBOARD PANELS ──
 function showHPanel(id,btn){
@@ -1942,7 +1992,14 @@ async function loadPatientDash(user) {
   document.getElementById('patient-name').textContent = user.firstName;
   document.getElementById('sidebar-patient-name').textContent = user.firstName + ' ' + (user.lastName||'');
   const pidEl = document.getElementById('sidebar-patient-id');
-  if (pidEl) pidEl.textContent = user.patientId || '—';
+  if (pidEl) pidEl.textContent = user.patientId ? 'ID: ' + user.patientId : '—';
+  
+  // Update mobile header
+  const mobileNameEl = document.getElementById('mobile-patient-name');
+  if (mobileNameEl) mobileNameEl.textContent = user.firstName + ' ' + (user.lastName||'');
+  const mobileIdEl = document.getElementById('mobile-patient-id');
+  if (mobileIdEl) mobileIdEl.textContent = user.patientId ? 'ID: ' + user.patientId : 'ID: —';
+  
   const now = new Date();
   const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
   const h = istDate.getHours();
@@ -2054,27 +2111,33 @@ function renderRecords(recs) {
 let _recsCache = {};
 
 async function viewRecord(id) {
-  const rec = _recsCache[id] || await DB.get('records', id);
-  if (!rec || !rec.fileData) { showToast('⚠️ No file attached'); return; }
-  _recsCache[id] = rec;
+  const rec = _recsCache[id];
+  if (!rec) {
+    // Fetch from Supabase if not in cache
+    const { data, error } = await _sb.from('records').select('*').eq('id', id).single();
+    if (error || !data) { showToast('⚠️ Record not found'); return; }
+    _recsCache[id] = data;
+  }
+  const record = _recsCache[id];
+  if (!record.fileData) { showToast('⚠️ No file attached'); return; }
 
   const modal = document.getElementById('record-modal');
-  document.getElementById('modal-title').textContent = rec.name;
+  document.getElementById('modal-title').textContent = record.name;
   const body = document.getElementById('modal-body');
-  const isImage = rec.fileData.startsWith('data:image');
-  const isPdf   = rec.fileData.startsWith('data:application/pdf');
+  const isImage = record.fileData.startsWith('data:image');
+  const isPdf   = record.fileData.startsWith('data:application/pdf');
 
   if (isImage) {
-    body.innerHTML = `<img src="${rec.fileData}" style="max-width:100%;max-height:60vh;border-radius:10px;object-fit:contain"/>`;
+    body.innerHTML = `<img src="${record.fileData}" style="max-width:100%;max-height:60vh;border-radius:10px;object-fit:contain"/>`;
   } else if (isPdf) {
-    body.innerHTML = `<iframe src="${rec.fileData}" style="width:100%;height:60vh;border:none;border-radius:10px"></iframe>`;
+    body.innerHTML = `<iframe src="${record.fileData}" style="width:100%;height:60vh;border:none;border-radius:10px"></iframe>`;
   } else {
     body.innerHTML = `<div style="padding:40px;color:var(--ink-light)">Preview not available for this file type.<br>Use Download to open it.</div>`;
   }
 
   document.getElementById('modal-download-btn').onclick = () => {
     const a = document.createElement('a');
-    a.href = rec.fileData; a.download = rec.name; a.click();
+    a.href = record.fileData; a.download = record.name; a.click();
   };
   modal.style.display = 'flex';
 }
@@ -2085,13 +2148,18 @@ function closeRecordModal() {
 }
 
 async function openEditRecord(id) {
-  const rec = _recsCache[id] || await DB.get('records', id);
-  if (!rec) return;
-  _recsCache[id] = rec;
+  const rec = _recsCache[id];
+  if (!rec) {
+    // Fetch from Supabase if not in cache
+    const { data, error } = await _sb.from('records').select('*').eq('id', id).single();
+    if (error || !data) { showToast('⚠️ Record not found'); return; }
+    _recsCache[id] = data;
+  }
+  const record = _recsCache[id];
   document.getElementById('edit-rec-id').value = id;
-  document.getElementById('edit-rec-name').value = rec.name;
-  document.getElementById('edit-rec-type').value = rec.type || 'upload';
-  document.getElementById('edit-rec-hospital').value = rec.hospital || '';
+  document.getElementById('edit-rec-name').value = record.name;
+  document.getElementById('edit-rec-type').value = record.type || 'upload';
+  document.getElementById('edit-rec-hospital').value = record.hospital || '';
   document.getElementById('edit-modal').style.display = 'flex';
 }
 
@@ -2100,26 +2168,63 @@ function closeEditModal() {
 }
 
 async function saveEditRecord() {
-  const id = parseInt(document.getElementById('edit-rec-id').value);
-  const rec = _recsCache[id] || await DB.get('records', id);
-  if (!rec) return;
-  rec.name     = document.getElementById('edit-rec-name').value.trim() || rec.name;
-  rec.type     = document.getElementById('edit-rec-type').value;
-  rec.hospital = document.getElementById('edit-rec-hospital').value.trim() || rec.hospital;
-  await DB.put('records', rec);
+  const id = document.getElementById('edit-rec-id').value;
+  const rec = _recsCache[id];
+  if (!rec) { showToast('⚠️ Record not found'); return; }
+  
+  const updatedName = document.getElementById('edit-rec-name').value.trim();
+  const updatedType = document.getElementById('edit-rec-type').value;
+  const updatedHospital = document.getElementById('edit-rec-hospital').value.trim();
+  
+  if (!updatedName) { showToast('⚠️ Name is required'); return; }
+  
+  // Update in Supabase
+  const { error } = await _sb.from('records').update({
+    name: updatedName,
+    type: updatedType,
+    hospital: updatedHospital
+  }).eq('id', id);
+  
+  if (error) {
+    console.error('Update error:', error);
+    showToast('❌ Failed to update record');
+    return;
+  }
+  
+  // Update cache
+  rec.name = updatedName;
+  rec.type = updatedType;
+  rec.hospital = updatedHospital;
   _recsCache[id] = rec;
+  
   closeEditModal();
-  const recs = await DB.getByIndex('records', 'patientId', currentUser.id);
-  renderRecords(recs);
+  
+  // Reload records
+  const { data: recs } = await _sb.from('records').select('*').eq('patientId', currentUser.id);
+  if (recs) { recs.forEach(r => _recsCache[r.id] = r); renderRecords(recs); }
+  
   showToast('✅ Record updated');
 }
 
 async function deleteRecord(id) {
-  if (!confirm('Delete this record?')) return;
-  await DB.delete('records', id);
+  if (!confirm('Delete this record? This action cannot be undone.')) return;
+  
+  // Delete from Supabase
+  const { error } = await _sb.from('records').delete().eq('id', id);
+  
+  if (error) {
+    console.error('Delete error:', error);
+    showToast('❌ Failed to delete record');
+    return;
+  }
+  
+  // Remove from cache
   delete _recsCache[id];
-  const recs = await DB.getByIndex('records', 'patientId', currentUser.id);
-  renderRecords(recs);
+  
+  // Reload records
+  const { data: recs } = await _sb.from('records').select('*').eq('patientId', currentUser.id);
+  if (recs) { recs.forEach(r => _recsCache[r.id] = r); renderRecords(recs); }
+  
   showToast('🗑 Record deleted');
 }
 
