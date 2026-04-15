@@ -1922,7 +1922,9 @@ async function handleRegister() {
 
       const hashed = await hashPw(password);
       const { data: hosp, error } = await _sb.from('hospitals').insert({
-        name, regNo: regNo || null, city: city || null, pincode: pincode || null,
+        name, regNo: regNo || null, 
+        //city: city || null,
+        pincode: pincode || null,
         contactPerson: contactPerson || null, email: email.toLowerCase(),
         phone: phone || null, password: hashed, createdAt: new Date().toISOString()
       }).select().single();
