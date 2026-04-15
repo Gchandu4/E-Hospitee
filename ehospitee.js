@@ -340,7 +340,8 @@ async function handleRegister() {
       const hashedPassword = await Auth.hashPassword(password);
       const hosp = await DB.add('hospitals', {
         name: Sanitize.text(name), regNo: Sanitize.text(regNo),
-        city: Sanitize.text(city), pincode: Sanitize.text(pincode),
+       // city: Sanitize.text(city),
+        pincode: Sanitize.text(pincode),
         contactPerson: Sanitize.text(contactPerson), email: email.toLowerCase(),
         phone: Sanitize.text(phone), password: hashedPassword,
         createdAt: new Date().toISOString()
