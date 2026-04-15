@@ -359,7 +359,7 @@ async function handleRegister() {
       const { data: hosp, error } = await _sb.from('hospitals').insert({
         name:          Sanitize.text(name),
         regNo:         Sanitize.text(regNo),
-        city:          Sanitize.text(city),
+        //city:          Sanitize.text(city),
         pincode:       Sanitize.text(pincode),
         contactPerson: Sanitize.text(contactPerson),
         email:         email.toLowerCase(),
