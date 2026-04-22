@@ -1901,14 +1901,18 @@ async function handleRegister() {
       loadPatientDash(safeUser);
 
     } else {
-      const name          = document.getElementById('reg-hosp-name')?.value.trim() || '';
-      const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || '';
-      const city          = document.getElementById('reg-hosp-city')?.value.trim() || '';
-      const pincode       = document.getElementById('reg-hosp-pin')?.value.trim() || '';
-      const contactPerson = document.getElementById('reg-hosp-contact')?.value.trim() || '';
-      const email         = document.getElementById('reg-hosp-email')?.value.trim() || '';
-      const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || '';
-      const password      = document.getElementById('reg-hosp-password')?.value || '';
+      const name          = document.getElementById('reg-hosp-name')?.value.trim() || null;
+      const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || null;
+      //const city          = document.getElementById('reg-hosp-city')?.value.trim() || null;
+     const pincode       = document.getElementById('reg-hosp-pin')?.value.trim() || null;
+      const contactPerson = document.getElementById('reg-hosp-contact')?.value.trim() || null;
+      const email         = document.getElementById('reg-hosp-email')?.value.trim() || null; 
+      const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || null;
+      //const password      = document.getElementById('reg-hosp-password')?.value || '';
+     // const name = document.getElementById('reg-hosp-name')?.value.trim() || null;
+      //const email = document.getElementById('reg-hosp-email')?.value.trim() || null;
+      //const phone = document.getElementById('reg-hosp-phone')?.value.trim() || null;
+      const password = document.getElementById('reg-hosp-password')?.value || null;
 
       if (!name || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account →'; btn.disabled=false; return; }
       if (password.length < 8) { showToast('Password must be at least 8 characters'); btn.textContent='Create Account →'; btn.disabled=false; return; }
@@ -1918,7 +1922,9 @@ async function handleRegister() {
 
       const hashed = await hashPw(password);
       const { data: hosp, error } = await _sb.from('hospitals').insert({
-        name, regNo: regNo || null, city: city || null, pincode: pincode || null,
+        name, regNo: regNo || null, 
+        //city: city || null,
+        pincode: pincode || null,
         contactPerson: contactPerson || null, email: email.toLowerCase(),
         phone: phone || null, password: hashed, createdAt: new Date().toISOString()
       }).select().single();

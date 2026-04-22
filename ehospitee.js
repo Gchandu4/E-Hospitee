@@ -322,14 +322,14 @@ async function handleRegister() {
       setTimeout(() => window.location.href = 'ehospitee-patient.html', 900);
 
     } else {
-      const name          = document.getElementById('reg-hosp-name')?.value.trim() || '';
-      const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || '';
-      const city          = document.getElementById('reg-hosp-city')?.value.trim() || '';
-      const pincode       = document.getElementById('reg-hosp-pin')?.value.trim() || '';
-      const contactPerson = document.getElementById('reg-hosp-contact')?.value.trim() || '';
-      const email         = document.getElementById('reg-hosp-email')?.value.trim() || '';
-      const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || '';
-      const password      = document.getElementById('reg-hosp-password')?.value.trim() || '';
+      const name          = document.getElementById('reg-hosp-name')?.value.trim() || null;
+      const regNo         = document.getElementById('reg-hosp-regno')?.value.trim() || null;
+     // const city          = document.getElementById('reg-hosp-city')?.value.trim() || null;
+      const pincode       = document.getElementById('reg-hosp-pin')?.value.trim() || null;
+      const contactPerson = document.getElementById('reg-hosp-contact')?.value.trim() || null;
+      const email         = document.getElementById('reg-hosp-email')?.value.trim() || null;
+      const phone         = document.getElementById('reg-hosp-phone')?.value.trim() || null;
+      const password      = document.getElementById('reg-hosp-password')?.value || null;
 
       if (!name || !email || !password) { showToast('Please fill all required fields'); btn.textContent='Create Account'; btn.disabled=false; return; }
       const pwError = Auth.validatePassword(password);
@@ -340,7 +340,8 @@ async function handleRegister() {
       const hashedPassword = await Auth.hashPassword(password);
       const hosp = await DB.add('hospitals', {
         name: Sanitize.text(name), regNo: Sanitize.text(regNo),
-        city: Sanitize.text(city), pincode: Sanitize.text(pincode),
+       // city: Sanitize.text(city),
+        pincode: Sanitize.text(pincode),
         contactPerson: Sanitize.text(contactPerson), email: email.toLowerCase(),
         phone: Sanitize.text(phone), password: hashedPassword,
         createdAt: new Date().toISOString()
