@@ -5,35 +5,17 @@
 html { scroll-behavior: smooth; font-size: 16px; }
 
 :root {
-  --forest: #085041;
-  --deep-forest: #04342C;
-  --teal: #1D9E75;
-  --teal-dark: #085041;
-  --teal-mid: #1D9E75;
-  --mint: #5DCAA5;
-  --foam: #9FE1CB;
-  --teal-light: #9FE1CB;
-  --teal-pale: #E1F5EE;
-  --mist: #E1F5EE;
-  --amber: #D97706;
-  --amber-pale: #FFFBEB;
-  --cream: #FAFAF7;
-  --white: #FFFFFF;
-  --ink: #2C2C2A;
-  --body-text: #2C2C2A;
-  --ink-mid: #2C2C2A;
-  --text-mid: #2C2C2A;
-  --ink-light: #888780;
-  --text-light: #888780;
-  --border: #E5E7EB;
-  --border-teal: #9FE1CB;
-  --red: #DC2626;
-  --emergency: #E24B4A;
-  --green: #16A34A;
-  --shadow-sm: 0 1px 3px rgba(8,80,65,.08);
-  --shadow-md: 0 4px 16px rgba(8,80,65,.08);
-  --shadow-lg: 0 12px 40px rgba(8,80,65,.10);
-  --shadow-teal: 0 8px 32px rgba(29,158,117,.18);
+  teal: #0B7A75; --teal-dark: #085553; --teal-mid: #0D9488;
+  teal-light: #CCFBF1; --teal-pale: #F0FDFA;
+  amber: #D97706; --amber-pale: #FFFBEB;
+  cream: #FAFAF7; --white: #FFFFFF;
+  ink: #111827; --ink-mid: #374151; --ink-light: #6B7280;
+  border: #E5E7EB; --border-teal: #99F6E4;
+  red: #DC2626; --green: #16A34A;
+  shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+  shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  shadow-lg: 0 12px 40px rgba(0,0,0,.10);
+  shadow-teal: 0 8px 32px rgba(11,122,117,.18);
 }
 
 body {
